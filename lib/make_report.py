@@ -284,11 +284,21 @@ see Section 5.)</div>""")
 
 # --- 4b. Fst ---
 add('<h3 id="t4b">4b. Fₛₜ — population differentiation (A vs P)</h3>')
+add("<h4>Windowed Fₛₜ tracks — Weir &amp; Cockerham (default estimator)</h4>")
 add('<div class="grid2">')
 add("<div><h4>raw</h4>"+img("fst_per_method_raw.png")+"</div>")
 add("<div><h4>normalised</h4>"+img("fst_per_method_norm.png")+"</div>")
 add("</div>")
-add("<h4>Cross-method Spearman correlation of windowed Fₛₜ</h4>")
+add("""<h4>Windowed Fₛₜ tracks — Hudson estimator (<code>--fst_type hudson</code>)</h4>""")
+add("""<p>The same windowed Fₛₜ computed with the Hudson estimator, shown here alongside the default so the
+two are directly comparable along the chromosome. The peaks fall at the same loci; Hudson runs a little
+higher at them. The head-to-head per-window comparison and the cross-method robustness of Hudson are in
+§4g.</p>""")
+add('<div class="grid2">')
+add("<div><h4>raw</h4>"+img("fst_hudson_per_method_raw.png","hudson tracks raw")+"</div>")
+add("<div><h4>normalised</h4>"+img("fst_hudson_per_method_norm.png","hudson tracks norm")+"</div>")
+add("</div>")
+add("<h4>Cross-method Spearman correlation of windowed Fₛₜ (Weir &amp; Cockerham)</h4>")
 add('<div class="grid2">')
 add("<div><h4>raw</h4>"+img("fst_correlation_raw.png")+"</div>")
 add("<div><h4>normalised</h4>"+img("fst_correlation_norm.png")+"</div>")
@@ -362,21 +372,24 @@ practical rule in §5b: use the un-split all-sites VCFs for π/dₓy/Fₛₜ.</d
 
 # --- 4f. all three measures together (combined genome scan) ---
 add('<h3 id="t4f">4f. All three measures together — combined genome scan</h3>')
-add("""<p>The three windowed estimators (§4a–4c) stacked in one figure and <b>sharing the x-axis</b>, so
-they can be read against each other along the chromosome: π (mean of the two populations) on top, Fₛₜ
-(A vs P) in the middle, dₓy (A vs P) at the bottom. All six methods are overlaid in every panel.</p>""")
+add("""<p>The windowed estimators (§4a–4c, §4g) stacked in one figure and <b>sharing the x-axis</b>, so they
+can be read against each other along the chromosome: <b>π</b> (mean of the two populations) on top, then
+<b>Fₛₜ (Weir &amp; Cockerham)</b>, then <b>Fₛₜ (Hudson)</b>, then <b>dₓy</b> (all A vs P) at the bottom.
+Both Fₛₜ estimators are shown so they can be compared against each other and against π/dₓy in the same view.
+All six methods are overlaid in every panel.</p>""")
 add('<div class="grid2">')
 add("<div><h4>raw</h4>"+img("combined_tracks_raw.png","combined tracks raw")+"</div>")
 add("<div><h4>normalised</h4>"+img("combined_tracks_norm.png","combined tracks norm")+"</div>")
 add("</div>")
 add("""<div class="key"><b>What the aligned view shows:</b> (1) π and dₓy track each other almost exactly —
 both are absolute diversity measures and both bundle tightly across the six methods; (2) the regions where
-π and dₓy crash toward zero (≈3 Mb and ≈7 Mb) coincide with the sharp <b>Fₛₜ peaks</b> — the classic
-signature of low-diversity / reduced-recombination regions where differentiation is inflated; (3) the
-method lines are visibly more spread in the Fₛₜ panel than in the π/dₓy panels — the same robustness
-contrast quantified in §4a–4b, now visible at a glance. This panel is the synthesis of section 4: it shows
-both the biology (covarying diversity and differentiation along the chromosome) and the methodology (which
-statistics are method-stable).</div>""")
+π and dₓy crash toward zero (≈3 Mb and ≈7 Mb) coincide with the sharp <b>Fₛₜ peaks</b> in <em>both</em>
+estimator panels — the classic signature of low-diversity / reduced-recombination regions where
+differentiation is inflated; (3) the two Fₛₜ panels agree on <em>where</em> the peaks are but Hudson reaches
+<em>higher</em> at them (see §4g); (4) the method lines are visibly more spread in the Fₛₜ panels than in the
+π/dₓy panels — the same robustness contrast quantified in §4a–4b, now visible at a glance. This panel is the
+synthesis of section 4: it shows both the biology (covarying diversity and differentiation along the
+chromosome) and the methodology (which statistics, and which estimators, are method-stable).</div>""")
 
 # --- 4g. Fst estimator comparison: WC vs Hudson ---
 add('<h3 id="t4g">4g. Fₛₜ estimator comparison — Weir &amp; Cockerham vs Hudson</h3>')

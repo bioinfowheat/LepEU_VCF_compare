@@ -167,34 +167,44 @@ def plot_dxy_tracks(df_dxy, out_png, title):
     axes[0].legend(loc="upper right", fontsize=8, ncol=2)
     plt.tight_layout(); plt.savefig(out_png, dpi=140); plt.close()
 
-def plot_combined_tracks(pi, fst, dxy, out_png, title):
-    """Stack the 3 windowed measures (π, Fst, dxy) sharing the x-axis so they can
-    be read against each other along the chromosome. One line per method.
-    π is averaged across the two populations to keep one line per method."""
+def plot_combined_tracks(pi, fst, dxy, out_png, title, hud=None):
+    """Stack the windowed measures sharing the x-axis so they can be read against
+    each other along the chromosome. One line per method. π is averaged across the
+    two populations to keep one line per method. If `hud` (Hudson Fst) is given, a
+    separate Hudson-Fst panel is added below the default (Weir & Cockerham) Fst."""
     if pi.empty or fst.empty or dxy.empty: return
-    fig, axes = plt.subplots(3, 1, figsize=(13, 10), sharex=True)
-    # panel 1: π (mean over populations, per method)
+    have_hud = hud is not None and not hud.empty and "avg_hudson_fst" in hud.columns
+    npan = 4 if have_hud else 3
+    fig, axes = plt.subplots(npan, 1, figsize=(13, 3.0*npan), sharex=True)
+    k = 0
+    # π (mean over populations, per method)
     pim = (pi.groupby(["method","window_pos_1"], as_index=False)["avg_pi"].mean())
     for m,s in pim.groupby("method"):
         s = s.sort_values("window_pos_1")
-        axes[0].plot(s["window_pos_1"]/1e6, s["avg_pi"], label=m,
+        axes[k].plot(s["window_pos_1"]/1e6, s["avg_pi"], label=m,
                      color=METHOD_COLORS.get(m,"k"), alpha=0.75, lw=1.0)
-    axes[0].set_ylabel("π (mean A,P)")
-    # panel 2: Fst (A vs P)
+    axes[k].set_ylabel("π (mean A,P)"); axes[k].legend(loc="upper right", fontsize=8, ncol=3); k+=1
+    # Fst — Weir & Cockerham (default)
     for m,s in fst.groupby("method"):
         s = s.sort_values("window_pos_1")
-        axes[1].plot(s["window_pos_1"]/1e6, s["avg_wc_fst"], label=m,
+        axes[k].plot(s["window_pos_1"]/1e6, s["avg_wc_fst"], label=m,
                      color=METHOD_COLORS.get(m,"k"), alpha=0.75, lw=1.0)
-    axes[1].set_ylabel("Fst (A vs P)"); axes[1].axhline(0, color="grey", lw=0.5, ls=":")
-    # panel 3: dxy (A vs P)
+    axes[k].set_ylabel("Fst W&C (A vs P)"); axes[k].axhline(0, color="grey", lw=0.5, ls=":"); k+=1
+    # Fst — Hudson (optional)
+    if have_hud:
+        for m,s in hud.groupby("method"):
+            s = s.sort_values("window_pos_1")
+            axes[k].plot(s["window_pos_1"]/1e6, s["avg_hudson_fst"], label=m,
+                         color=METHOD_COLORS.get(m,"k"), alpha=0.75, lw=1.0)
+        axes[k].set_ylabel("Fst Hudson (A vs P)"); axes[k].axhline(0, color="grey", lw=0.5, ls=":"); k+=1
+    # dxy (A vs P)
     for m,s in dxy.groupby("method"):
         s = s.sort_values("window_pos_1")
-        axes[2].plot(s["window_pos_1"]/1e6, s["avg_dxy"], label=m,
+        axes[k].plot(s["window_pos_1"]/1e6, s["avg_dxy"], label=m,
                      color=METHOD_COLORS.get(m,"k"), alpha=0.75, lw=1.0)
-    axes[2].set_ylabel("dxy (A vs P)")
-    axes[2].set_xlabel("Position on FR997704.1 (Mb)")
+    axes[k].set_ylabel("dxy (A vs P)")
+    axes[k].set_xlabel("Position on FR997704.1 (Mb)")
     axes[0].set_title(title)
-    axes[0].legend(loc="upper right", fontsize=8, ncol=3)
     plt.tight_layout(); plt.savefig(out_png, dpi=140); plt.close()
 
 def correlation_heatmap(df, value_col, key_cols, out_png, title):
@@ -473,11 +483,13 @@ def main():
                                        f"Spearman corr. of windowed dxy across methods — {regime}")
             if corr is not None: corr.to_csv(plots/f"dxy_correlation_{regime}.tsv", sep="\t")
 
-        # combined 3-measure genome scan (π / Fst / dxy stacked, shared x-axis)
+        # combined genome scan (π / Fst-WC / Fst-Hudson / dxy stacked, shared x-axis)
+        hud = load_pixy(root/f"pixy_hudson_{regime}", "fst")
         if not pi.empty and not fst.empty and not dxy.empty:
             plot_combined_tracks(pi, fst, dxy,
                                  plots/f"combined_tracks_{regime}.png",
-                                 f"π, Fst and dxy along FR997704.1 (50 kb windows) — {regime}")
+                                 f"π, Fst (W&C + Hudson) and dxy along FR997704.1 (50 kb windows) — {regime}",
+                                 hud=hud)
 
     # Tier 3
     df_vep = parse_vep_summary(root/"vep")
