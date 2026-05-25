@@ -1,0 +1,94 @@
+---
+title: "Tier 2 — multi-way SNP-site intersection (UpSetR)"
+output:
+  html_document:
+    toc: true
+    theme: flatly
+params:
+  root: "/Users/stockholmbutterflylab/sbl_claudecode/VCF_compare/compare_out"
+  outdir: "/Users/stockholmbutterflylab/sbl_claudecode/VCF_compare/compare_out/plots"
+---
+
+```{r setup, include=FALSE}
+.libPaths(c("/Users/stockholmbutterflylab/R_libs_vcfcompare", .libPaths()))
+library(data.table)
+library(UpSetR)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE,
+                      dev = "png", dpi = 150)
+dir.create(params$outdir, showWarnings = FALSE, recursive = TRUE)
+
+# bcftools isec writes a 6-bit presence mask; bit order follows the input order:
+methods <- c("bwa_cohort","bwa_hwe","bwa_nohwe","ngm_cohort","ngm_hwe","ngm_nohwe")
+
+load_sites <- function(regime) {
+  f <- file.path(params$root, paste0("isec_", regime), "sites.txt")
+  s <- fread(f, header = FALSE,
+             col.names = c("chr","pos","ref","alt","mask"),
+             colClasses = c("character","integer","character","character","character"))
+  # split the bitstring into a 0/1 matrix
+  M <- do.call(rbind, lapply(strsplit(s$mask, ""), as.integer))
+  M <- as.data.frame(M)
+  colnames(M) <- methods
+  M
+}
+
+# colour the set bars by mapper so the BWA/NGM split is visible
+set_colors <- c(rep("#2874a6", 3), rep("#6c3483", 3))
+```
+
+## What this plot shows
+
+Each VCF contributes a **set** of SNP sites. The UpSet plot decomposes the
+overlap of all six sets into every possible *intersection pattern*. The matrix
+at the bottom marks which methods belong to each intersection (a column of
+filled dots); the bar above gives the **number of SNP sites** unique to that
+exact combination. The horizontal bars at the lower left give each method's
+total set size. Unlike a Venn diagram, UpSet stays readable with 6 sets
+(2^6 − 1 = 63 possible intersections).
+
+## Raw VCFs
+
+```{r upset-raw, fig.width=13, fig.height=7}
+Mraw <- load_sites("raw")
+cat("Total union sites (raw):", nrow(Mraw), "\n")
+upset(Mraw, sets = rev(methods), keep.order = TRUE,
+      nintersects = 40, order.by = "freq",
+      sets.bar.color = rev(set_colors),
+      main.bar.color = "#34495e", matrix.color = "#c0392b",
+      mainbar.y.label = "SNP sites in intersection",
+      sets.x.label = "SNPs per method",
+      text.scale = c(1.4, 1.3, 1.2, 1.1, 1.3, 1.1))
+```
+
+## Normalised VCFs
+
+```{r upset-norm, fig.width=13, fig.height=7}
+Mnorm <- load_sites("norm")
+cat("Total union sites (norm):", nrow(Mnorm), "\n")
+upset(Mnorm, sets = rev(methods), keep.order = TRUE,
+      nintersects = 40, order.by = "freq",
+      sets.bar.color = rev(set_colors),
+      main.bar.color = "#34495e", matrix.color = "#117864",
+      mainbar.y.label = "SNP sites in intersection",
+      sets.x.label = "SNPs per method",
+      text.scale = c(1.4, 1.3, 1.2, 1.1, 1.3, 1.1))
+```
+
+## Export standalone PNGs for embedding
+
+```{r export}
+export_upset <- function(M, file, matrix_col) {
+  png(file, width = 13, height = 7, units = "in", res = 150)
+  print(upset(M, sets = rev(methods), keep.order = TRUE,
+              nintersects = 40, order.by = "freq",
+              sets.bar.color = rev(set_colors),
+              main.bar.color = "#34495e", matrix.color = matrix_col,
+              mainbar.y.label = "SNP sites in intersection",
+              sets.x.label = "SNPs per method",
+              text.scale = c(1.4, 1.3, 1.2, 1.1, 1.3, 1.1)))
+  dev.off()
+}
+export_upset(Mraw,  file.path(params$outdir, "upsetR_raw.png"),  "#c0392b")
+export_upset(Mnorm, file.path(params$outdir, "upsetR_norm.png"), "#117864")
+cat("Wrote upsetR_raw.png and upsetR_norm.png to", params$outdir, "\n")
+```

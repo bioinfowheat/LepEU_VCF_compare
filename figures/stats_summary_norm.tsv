@@ -1,0 +1,7 @@
+method	regime	number_of_records	number_of_snps	number_of_indels	number_of_multiallelic_sites	number_of_multiallelic_snp_sites
+bwa_cohort	norm	13511542.0	1549247.0	140261.0	0.0	0.0
+bwa_hwe	norm	13515189.0	1564781.0	142678.0	0.0	0.0
+bwa_nohwe	norm	13527567.0	1649768.0	152063.0	0.0	0.0
+ngm_cohort	norm	13482501.0	1398089.0	95126.0	0.0	0.0
+ngm_hwe	norm	13485419.0	1414408.0	97483.0	0.0	0.0
+ngm_nohwe	norm	13497885.0	1503705.0	110453.0	0.0	0.0

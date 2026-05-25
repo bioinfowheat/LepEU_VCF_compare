@@ -1,0 +1,7 @@
+	bwa_cohort	bwa_hwe	bwa_nohwe	ngm_cohort	ngm_hwe	ngm_nohwe
+bwa_cohort	1.0	0.2	0.2	0.5	0.0	0.5
+bwa_hwe	0.2	1.0	0.5	0.2	0.5	0.0
+bwa_nohwe	0.2	0.5	1.0	0.2	0.2	0.0
+ngm_cohort	0.5	0.2	0.2	1.0	0.2	0.5
+ngm_hwe	0.0	0.5	0.2	0.2	1.0	0.0
+ngm_nohwe	0.5	0.0	0.0	0.5	0.0	1.0

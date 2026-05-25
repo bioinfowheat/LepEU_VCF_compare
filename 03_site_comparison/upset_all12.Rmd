@@ -1,0 +1,66 @@
+---
+title: "12-way SNP-site intersection — 6 raw + 6 normalised (UpSetR)"
+output:
+  html_document:
+    toc: true
+    theme: flatly
+params:
+  root: "/Users/stockholmbutterflylab/sbl_claudecode/VCF_compare/compare_out"
+  outdir: "/Users/stockholmbutterflylab/sbl_claudecode/VCF_compare/compare_out/plots"
+---
+
+```{r setup, include=FALSE}
+.libPaths(c("/Users/stockholmbutterflylab/R_libs_vcfcompare", .libPaths()))
+library(data.table); library(UpSetR)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, dev = "png", dpi = 150)
+dir.create(params$outdir, showWarnings = FALSE, recursive = TRUE)
+
+# isec_all12 input order: 6 raw, then 6 norm (same method order within each block)
+methods12 <- c("bwa_cohort_raw","bwa_hwe_raw","bwa_nohwe_raw",
+               "ngm_cohort_raw","ngm_hwe_raw","ngm_nohwe_raw",
+               "bwa_cohort_norm","bwa_hwe_norm","bwa_nohwe_norm",
+               "ngm_cohort_norm","ngm_hwe_norm","ngm_nohwe_norm")
+
+f <- file.path(params$root, "isec_all12", "sites.txt")
+s <- fread(f, header = FALSE, col.names = c("chr","pos","ref","alt","mask"),
+           colClasses = c("character","integer","character","character","character"))
+M <- as.data.frame(do.call(rbind, lapply(strsplit(s$mask, ""), as.integer)))
+colnames(M) <- methods12
+
+# colour the set bars by regime so the raw/normalised split is obvious
+set_colors <- c(rep("#aab7c4", 6),   # raw  = grey-blue
+                rep("#1b4f72", 6))    # norm = dark blue
+```
+
+## Purpose
+
+A single UpSet plot containing all **12** call sets (each method in both its raw
+and normalised form). This makes the effect of normalisation directly visible:
+for a given method, the raw and normalised sets should overlap almost completely
+for ordinary bi-allelic SNPs, while normalisation contributes extra rows where it
+split multi-allelic sites. The set-size bars are coloured by regime
+(grey = raw, dark blue = normalised).
+
+```{r upset12, fig.width=15, fig.height=8}
+cat("Union sites across all 12:", nrow(M), "\n")
+upset(M, sets = rev(methods12), keep.order = TRUE,
+      nintersects = 45, order.by = "freq",
+      sets.bar.color = rev(set_colors),
+      main.bar.color = "#34495e", matrix.color = "#c0392b",
+      mainbar.y.label = "SNP sites in intersection",
+      sets.x.label = "SNPs per call set",
+      text.scale = c(1.3, 1.2, 1.0, 1.0, 1.0, 0.9))
+```
+
+```{r export}
+png(file.path(params$outdir, "upsetR_all12.png"), width = 15, height = 8, units = "in", res = 150)
+print(upset(M, sets = rev(methods12), keep.order = TRUE,
+            nintersects = 45, order.by = "freq",
+            sets.bar.color = rev(set_colors),
+            main.bar.color = "#34495e", matrix.color = "#c0392b",
+            mainbar.y.label = "SNP sites in intersection",
+            sets.x.label = "SNPs per call set",
+            text.scale = c(1.3, 1.2, 1.0, 1.0, 1.0, 0.9)))
+dev.off()
+cat("Wrote upsetR_all12.png\n")
+```

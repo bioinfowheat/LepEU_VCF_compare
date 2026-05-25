@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Comparative assessment of VCF files — Pnapi chr FR997704</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script>mermaid.initialize({startOnLoad:true, theme:'neutral', flowchart:{curve:'basis'}});</script>
+<style>
+ body {font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+       max-width: 1100px; margin: 2em auto; padding: 0 2em; color:#222; line-height:1.5;}
+ h1 {border-bottom: 3px solid #333; padding-bottom: 0.3em;}
+ h2 {color:#1b4f72; border-bottom: 1px solid #ddd; padding-bottom: 0.2em; margin-top: 2em;}
+ h3 {color:#117864;}
+ .tier {background:#f4f9fd; border-left: 4px solid #1b4f72; padding: 0.6em 1em; margin: 1em 0;}
+ .tip {background:#fef9e7; border-left: 4px solid #b7950b; padding: 0.6em 1em; margin: 1em 0;}
+ .warn {background:#fdedec; border-left: 4px solid #c0392b; padding: 0.6em 1em; margin: 1em 0;}
+ pre {background:#1e1e1e; color:#e6e6e6; padding: 1em; border-radius:6px; overflow-x:auto; font-size: 0.85em;}
+ code {font-family: "SF Mono", Menlo, monospace;}
+ p code, li code {background:#eee; color:#c0392b; padding: 0.1em 0.3em; border-radius:3px;}
+ table {border-collapse: collapse; width: 100%; margin: 1em 0;}
+ th, td {border: 1px solid #ccc; padding: 0.4em 0.6em; text-align: left; font-size: 0.92em;}
+ th {background: #1b4f72; color: white;}
+ tr:nth-child(even) {background: #f8f8f8;}
+ .mermaid {background: #fafafa; padding: 1em; border-radius: 6px; text-align: center;}
+ details {margin: 0.5em 0;}
+ summary {cursor: pointer; font-weight: 600; color: #1b4f72;}
+</style>
+</head>
+<body>
+
+<h1>Comparative assessment of a VCF set — design overview</h1>
+<p><em>Dataset: <code>Pnapi_chr10_FR997704</code> — six VCFs across two mappers (BWA, NGM) × three downstream settings (cohort, hwe, nohwe), all called with bcftools.</em></p>
+
+<div class="tip">
+<strong>Framing.</strong> Because you have the <em>same</em> reads and the <em>same</em> caller across all six VCFs, differences between files come from (a) mapping ambiguity / read placement, and (b) post-call filtering choices. That structure matters: the comparison should not just ask “do the VCFs agree?” but “<em>where</em> do they disagree (genomic context, allele frequency, coverage), and does that disagreement propagate into downstream population-genomic estimates?”. A site-level Venn diagram is the start, not the end.
+</div>
+
+<h2>1. Recommended analysis architecture</h2>
+
+<div class="mermaid">
+flowchart TB
+  subgraph IN["Input set (6 VCFs)"]
+    V1["bwa · cohort"]:::bwa
+    V2["bwa · hwe"]:::bwa
+    V3["bwa · nohwe"]:::bwa
+    V4["ngm · cohort"]:::ngm
+    V5["ngm · hwe"]:::ngm
+    V6["ngm · nohwe"]:::ngm
+  end
+
+  IN --> NORM["<b>0. Normalisation</b><br/>bcftools norm -f REF -m -any<br/>split MNPs, left-align, decompose"]
+  NORM --> T1
+  NORM --> T2
+  NORM --> T3
+  NORM --> T4
+  NORM --> T5
+
+  T1["<b>Tier 1 — Per-file QC</b><br/>bcftools stats · vcfstats<br/>ts/tv, het/hom, missingness,<br/>DP &amp; QUAL distributions, SFS"]
+  T2["<b>Tier 2 — Site &amp; genotype concordance</b><br/>bcftools isec (multi-way)<br/>UpSet plot · Jaccard matrix<br/>hap.py / vcfeval (GT concordance)<br/>discordance vs MAF, DP, region"]
+  T3["<b>Tier 3 — Genomic context</b><br/>SnpEff / VEP annotation<br/>density in CDS · intron · intergenic<br/>repeats (RepeatMasker BED)<br/>callable mask intersect"]
+  T4["<b>Tier 4 — Popgen estimators</b><br/>pixy: π, dxy, Fst (all-sites!)<br/>vcftools: Tajima's D, LD<br/>PLINK: PCA, IBS, ROH<br/>SFS / dadi input"]
+  T5["<b>Tier 5 — Robustness of inference</b><br/>do outlier windows agree?<br/>rank correlation of π / Fst<br/>are demographic / selection<br/>conclusions method-invariant?"]
+
+  T1 --> RPT
+  T2 --> RPT
+  T3 --> RPT
+  T4 --> T5
+  T5 --> RPT["<b>Synthesis report</b><br/>method × metric heatmap<br/>which decisions are robust?"]
+
+  classDef bwa fill:#d6eaf8,stroke:#2874a6;
+  classDef ngm fill:#e8daef,stroke:#6c3483;
+</div>
+
+<h2>2. Why these tiers, in popgen terms</h2>
+<table>
+<tr><th>Tier</th><th>Question it answers</th><th>Why it matters for popgen</th></tr>
+<tr><td>0. Normalisation</td><td>Are records comparable?</td><td>bcftools/GATK represent indels and MNPs differently; without left-alignment + decomposition, “intersections” are artefactually low.</td></tr>
+<tr><td>1. Per-file QC</td><td>Is any one VCF anomalous on its own?</td><td>Ts/Tv, het/hom, and the unfolded SFS catch systemic bias before you start comparing.</td></tr>
+<tr><td>2. Concordance</td><td>Which sites &amp; <em>genotypes</em> agree?</td><td>Site agreement is permissive; genotype concordance is the popgen-relevant quantity because π, Fst, and PCA all depend on genotype calls, not just on “a SNP was called here”.</td></tr>
+<tr><td>3. Genomic context</td><td>Where do disagreements live?</td><td>If discordance is concentrated in repeats, low-complexity, or near indels, it is a <em>mapper</em> artefact; if it is in HWE-deviating sites, it is a <em>filter</em> artefact.</td></tr>
+<tr><td>4. Popgen estimators</td><td>Do summaries differ?</td><td>π, dxy, Fst, Tajima's D are what end up in the paper. Calculate with <strong>pixy</strong> using all-sites VCFs so missing data is handled correctly.</td></tr>
+<tr><td>5. Robustness</td><td>Do conclusions change?</td><td>The most defensible result is one where the top-ranked outlier windows / PCA structure agree across mappers <em>and</em> filtering regimes.</td></tr>
+</table>
+
+<div class="warn">
+<strong>HWE filtering caveat.</strong> Hard HWE filters remove true variants under selection, in structured populations, or with sex-linked inheritance. The <code>hwe</code> vs <code>nohwe</code> comparison is therefore not just a technical filter test — it is a biological-assumption test. Expect Fst peaks to shrink under HWE filtering.
+</div>
+
+<h2>3. What VCF normalisation actually does</h2>
+
+<p>VCF is a text format with <em>multiple legal ways</em> to write the same biological variant. Two callers can be 100% biologically concordant and still share 0 lines after a naive <code>grep</code> or <code>isec</code>. Normalisation forces every record into a single canonical representation so that comparison is meaningful. <code>bcftools norm</code> does four things, and you should know what each is doing to your data:</p>
+
+<h3>3.1 Left-alignment of indels</h3>
+<p>In a repetitive context, an indel can be written at several positions and they are all biologically identical. Convention: shift it as far left as the reference allows.</p>
+<table>
+<tr><th>Reference</th><th>Naïve VCF (caller A)</th><th>Naïve VCF (caller B)</th><th>Left-aligned (canonical)</th></tr>
+<tr><td><code>AAAAACG</code></td><td><code>POS=3 REF=A ALT=AA</code><br>(insert at pos 3)</td><td><code>POS=5 REF=A ALT=AA</code><br>(insert at pos 5)</td><td><code>POS=1 REF=A ALT=AA</code></td></tr>
+</table>
+<p>Both callers inserted one <code>A</code> into a run of <code>A</code>s — there is no biological way to tell <em>which</em> A. Without left-alignment, <code>bcftools isec</code> sees them as two different sites. After <code>bcftools norm -f REF</code>, they collapse to the same record.</p>
+
+<h3>3.2 Parsimony / trimming</h3>
+<p>The REF and ALT should share no common suffix and (after position adjustment) no common prefix beyond the anchor base. Trim them down to the minimal representation.</p>
+<table>
+<tr><th>Bloated</th><th>Parsimonious</th></tr>
+<tr><td><code>REF=CACAC  ALT=CAC</code></td><td><code>REF=CAC  ALT=C</code> (suffix <code>AC</code> trimmed)</td></tr>
+<tr><td><code>REF=GTTC   ALT=GTAC</code></td><td><code>POS+=2  REF=T  ALT=A</code> (it's a SNP, not an MNP)</td></tr>
+</table>
+
+<h3>3.3 Splitting multi-allelic sites (<code>-m -any</code>)</h3>
+<p>One site can be written as a single record with multiple ALTs, or as multiple records with one ALT each. Comparing across files only works if everyone uses the same convention. <code>bcftools norm -m -any</code> means “split everything down to bi-allelic”, which is what almost every downstream tool (pixy, plink, vcftools, snpEff) actually wants.</p>
+<pre><code>BEFORE (multi-allelic, one line):
+chr1  100  .  A  G,T  .  PASS  .  GT  0/1  1/2
+
+AFTER bcftools norm -m -any (two bi-allelic lines):
+chr1  100  .  A  G    .  PASS  .  GT  0/1  1/.
+chr1  100  .  A  T    .  PASS  .  GT  ./.  ./1</code></pre>
+<p>Notice that genotypes are re-encoded per ALT — that is the whole point. After this, <em>every</em> record represents exactly one alternative allele, so set operations and per-allele statistics are well-defined.</p>
+
+<h3>3.4 Decomposing MNPs / complex variants</h3>
+<p>An MNP like <code>REF=AC ALT=GT</code> at one position is actually two SNPs in a row. Different callers split or don't split these. <code>bcftools norm -a</code> (or piping through <code>vt decompose_blocksub</code>) breaks them into individual SNPs so that, again, the unit of comparison is identical across files.</p>
+
+<h3>3.5 The single command that does all of it</h3>
+<pre><code>bcftools norm \
+  -f reference.fa \      # left-align needs the reference sequence
+  -m -any \              # split multi-allelics into bi-allelic records
+  -c w \                 # warn (don't crash) if REF doesn't match the fasta
+  --atom-overlaps . \    # break overlapping deletions cleanly
+  -Oz -o out.norm.vcf.gz \
+  in.vcf.gz
+bcftools index -t out.norm.vcf.gz</code></pre>
+<table>
+<tr><th>Flag</th><th>What it does</th><th>Why it matters here</th></tr>
+<tr><td><code>-f reference.fa</code></td><td>Provides the reference for left-alignment and REF checking.</td><td>BWA and NGM can produce VCFs where the REF column was emitted with subtle differences (case, ambiguity codes). The fasta is the source of truth.</td></tr>
+<tr><td><code>-m -any</code></td><td>Decomposes multi-allelics. <code>+any</code> would re-join them.</td><td>Required for pixy, PLINK, and meaningful <code>isec</code>.</td></tr>
+<tr><td><code>-c w</code></td><td>Sanity-check REF against fasta; warn on mismatch.</td><td>Catches the easy disaster of running with the wrong reference build.</td></tr>
+<tr><td><code>--atom-overlaps .</code></td><td>Handles deletions that overlap other variants.</td><td>Mapper differences around indels often produce overlapping records; this resolves them deterministically.</td></tr>
+<tr><td><code>-Oz</code></td><td>Output bgzipped VCF.</td><td>Required for tabix-indexing.</td></tr>
+</table>
+
+<div class="tip">
+<strong>Empirical rule of thumb.</strong> On the same dataset, naive site overlap between two callers is typically 70–85%. After normalisation, it jumps to 90–97%. That gap is almost entirely representation, not biology — and you do not want to confuse the two when interpreting your six VCFs.
+</div>
+
+<h2>4. Additional files you will need</h2>
+
+<div class="tip">
+<strong>Status check on this dataset.</strong> I inspected the six VCFs and the genome folder, and three things came out worth flagging before listing what's still missing:
+<ul style="margin-top:0.4em">
+<li><strong>Sample list is consistent.</strong> All six VCFs contain the same <strong>14 samples</strong> in the same order — confirmed by hashing the <code>#CHROM</code> line. Samples fall into two obvious groups: <code>Pnapi_A1..A7</code> (n=7) and <code>Pnapi_P1..P7</code> (n=7). That is a clean 7-vs-7 two-population design, which is the basis for the <code>popmap.tsv</code> below.</li>
+<li><strong>All six VCFs <em>are</em> all-sites.</strong> I sampled the first 5,000 records of each: every file is &gt;98% invariant sites (ALT=<code>.</code>) interleaved with variants. There is <em>no</em> variant-only outlier — sizes vary by only ~6% (554–587 MB). So <strong>pixy can run directly on these VCFs</strong> and you do not need to regenerate anything from BAMs.</li>
+<li><strong>Reference vs. VCF chromosome naming mismatch — solved.</strong> The VCFs use the ENA/INSDC accession <code>FR997704.1</code>, but the reference genome (<code>GCF_905475465.1_ilPieNapi1.2_genomic.fna</code>) uses the RefSeq accessions <code>NC_062xxx.1</code> / <code>NW_025920xxx.1</code>. Pnapi chromosome 10 is <strong>NC_062243.1</strong> (13,261,761 bp) — confirmed by the GFF tag <code>chromosome=10</code>. I extracted that one record from the genome fasta and renamed the header to <code>FR997704.1</code> so it matches the VCFs.</li>
+</ul>
+</div>
+
+<h3>4.1 Files I generated for you</h3>
+<table>
+<tr><th>File</th><th>What's in it</th><th>How it was made</th></tr>
+<tr>
+  <td><code>genome/Pnapi_FR997704.fa</code> (+ <code>.fai</code>)</td>
+  <td>Chromosome 10 only, header renamed to <code>FR997704.1</code> so it matches the VCF <code>##contig</code> lines. 13,261,761 bp.</td>
+  <td><code>samtools faidx genome.fna NC_062243.1 | sed 's/^&gt;NC_062243.1.*/&gt;FR997704.1/' &gt; Pnapi_FR997704.fa; samtools faidx Pnapi_FR997704.fa</code></td>
+</tr>
+<tr>
+  <td><code>genome/Pnapi_FR997704.gff</code></td>
+  <td>All GFF features on chromosome 10, with the contig column rewritten <code>NC_062243.1 → FR997704.1</code>. ~20.6 k feature lines.</td>
+  <td><code>awk '$1=="NC_062243.1"{$1="FR997704.1"; print}'</code> over the full-genome GFF, with a <code>##sequence-region</code> header prepended.</td>
+</tr>
+<tr>
+  <td><code>popmap.tsv</code></td>
+  <td>Two-column tab-separated file mapping each of the 14 samples to its population (A or P), ready for pixy / vcftools.</td>
+  <td>Built directly from the <code>#CHROM</code> line of the VCFs. See §4.3.</td>
+</tr>
+</table>
+
+<h3>4.2 Sample sheet for the <code>popmap.tsv</code></h3>
+<p>Read directly from the VCF headers (all six VCFs agree). Two equally-sized groups, which is ideal for Fst.</p>
+<table>
+<tr><th>Population</th><th>n</th><th>Samples</th></tr>
+<tr><td><b>A</b></td><td>7</td><td><code>Pnapi_A1, Pnapi_A2, Pnapi_A3, Pnapi_A4, Pnapi_A5, Pnapi_A6, Pnapi_A7</code></td></tr>
+<tr><td><b>P</b></td><td>7</td><td><code>Pnapi_P1, Pnapi_P2, Pnapi_P3, Pnapi_P4, Pnapi_P5, Pnapi_P6, Pnapi_P7</code></td></tr>
+</table>
+
+<div class="warn">
+<strong>One question for you.</strong> The labels <code>A</code> and <code>P</code> obviously correspond to two biological groups you know (e.g., subspecies <em>P. n. adalwinda</em> vs <em>P. n. napi</em>, or two geographic populations). Replace the second column of <code>popmap.tsv</code> with the actual population labels before running pixy — that's what will show up in the output filenames and figure legends. n=7 vs n=7 gives 14 sequences in each pool for Fst, which is enough for windowed estimates but not for site-by-site significance — keep the windowed framing.
+</div>
+
+<p>The contents of <code>popmap.tsv</code> (already written for you, ready to edit the labels):</p>
+<pre><code>Pnapi_A1	A
+Pnapi_A2	A
+Pnapi_A3	A
+Pnapi_A4	A
+Pnapi_A5	A
+Pnapi_A6	A
+Pnapi_A7	A
+Pnapi_P1	P
+Pnapi_P2	P
+Pnapi_P3	P
+Pnapi_P4	P
+Pnapi_P5	P
+Pnapi_P6	P
+Pnapi_P7	P</code></pre>
+
+<h3>4.3 How the chromosome was extracted (for the record)</h3>
+<pre><code># The reference uses RefSeq IDs (NC_062xxx.1); the VCFs use the ENA ID (FR997704.1).
+# Pnapi chr10 = NC_062243.1 (confirmed via GFF: chromosome=10).
+cd genome
+samtools faidx GCF_905475465.1_ilPieNapi1.2_genomic.fna NC_062243.1 \
+  | sed 's/^>NC_062243.1.*/>FR997704.1/' \
+  > Pnapi_FR997704.fa
+samtools faidx Pnapi_FR997704.fa
+# -> Pnapi_FR997704.fa.fai
+#    FR997704.1   13261761   12   80   81
+
+# Same trick for the GFF — keep only chr10 records, rename column 1
+{
+  echo "##gff-version 3"
+  echo "##sequence-region FR997704.1 1 13261761"
+  awk -v OFS='\t' '$1=="NC_062243.1"{$1="FR997704.1"; print}' \
+      GCF_905475465.1_ilPieNapi1.2_genomic.gff
+} > Pnapi_FR997704.gff</code></pre>
+
+<h3>4.4 Files still missing (recommended, not strictly required)</h3>
+<p>The six VCFs, the chromosome fasta + index, the chromosome GFF, and the <code>popmap.tsv</code> together let you run <strong>every tier of the pipeline</strong>. The list below is purely for sharpening the interpretation:</p>
+<table>
+<tr><th>File</th><th>Purpose</th><th>Required for</th><th>How to obtain</th></tr>
+
+<table>
+<tr><th>File</th><th>Purpose</th><th>Required for</th><th>How to obtain</th></tr>
+<tr>
+  <td>SnpEff database for <em>Pieris napi</em></td>
+  <td>Pre-built database mapping coordinates → functional consequence.</td>
+  <td>Tier 3 if using SnpEff. (VEP can run directly off <code>Pnapi_FR997704.gff</code>.)</td>
+  <td><code>snpEff databases | grep -i napi</code>; if absent, build locally with <code>snpEff build -gff3 -v Pieris_napi</code> using the GFF I extracted in §4.1.</td>
+</tr>
+<tr>
+  <td><code>repeats.bed</code> / RepeatMasker output</td>
+  <td>Genomic intervals of repetitive / low-complexity sequence on FR997704.1.</td>
+  <td>Tier 3 — to test whether mapper-disagreement is concentrated in repeats.</td>
+  <td>RepeatMasker BED from the ilPieNapi1.2 annotation release on NCBI/Ensembl, or run RepeatModeler+RepeatMasker locally on <code>Pnapi_FR997704.fa</code>.</td>
+</tr>
+<tr>
+  <td><code>callable.bed</code> (one per mapper)</td>
+  <td>Regions where the mapper achieved adequate coverage (e.g., 5× ≤ DP ≤ 2× mean) — one BED per mapper, intersected across samples.</td>
+  <td>All tiers — intersect <em>every</em> comparison with this to avoid mapper-coverage masquerading as variant disagreement.</td>
+  <td><code>mosdepth --by 1000 --quantize 0:1:5:50: sample.bam</code> then convert the <code>quantize</code> output to BED; intersect across samples per mapper. Needs the BAMs.</td>
+</tr>
+<tr>
+  <td>Original BAMs (one set per mapper)</td>
+  <td>Only needed for the callable mask (above). <em>Not</em> needed to regenerate VCFs — yours are already all-sites.</td>
+  <td>Optional — only for building <code>callable.bed</code>.</td>
+  <td>From the mapping pipeline that produced these VCFs (BWA and NGM BAMs).</td>
+</tr>
+<tr>
+  <td>Sample metadata table</td>
+  <td>Sex, geographic origin, sequencing batch, mean coverage per sample.</td>
+  <td>Helpful — interpreting PCA, ROH, and discordance patterns.</td>
+  <td>From your project records. Even a 3-column TSV (<code>sample, sex, locality</code>) for the 14 samples will sharpen interpretation considerably.</td>
+</tr>
+</table>
+
+<h3>Quick sanity checks before you launch the pipeline</h3>
+<pre><code># 1. All six VCFs see the same samples, in the same order?
+for v in $VCFDIR/*.vcf.gz; do
+  echo "=== $v ==="; bcftools query -l $v | tr '\n' ' '; echo
+done
+
+# 2. Reference matches the VCF contigs?
+bcftools view -h $VCFDIR/Pnapi_bwa_bcftools_cohort_FR997704.1.vcf.gz \
+  | grep "^##contig"
+cut -f1 $REF.fai
+
+# 3. Every popmap sample is in every VCF?
+cut -f1 popmap.tsv | sort > /tmp/popmap.ids
+for v in $VCFDIR/*.vcf.gz; do
+  bcftools query -l $v | sort > /tmp/vcf.ids
+  echo "$v: missing -> $(comm -23 /tmp/popmap.ids /tmp/vcf.ids | wc -l)"
+done</code></pre>
+
+<h2>5. Code — runnable pipeline</h2>
+
+<h3>3.0 Setup: variables &amp; normalisation</h3>
+<pre><code>VCFDIR=Pnapi_chr10_FR997704
+REF=Pnapi_FR997704.fa                # supply: reference fasta, indexed (.fai)
+CHR=FR997704.1
+OUT=compare_out
+mkdir -p $OUT/{norm,stats,isec,annot,pixy,plink,reports}
+
+VCFS=(
+  Pnapi_bwa_bcftools_cohort_FR997704.1.vcf.gz
+  Pnapi_bwa_bcftools_hwe_FR997704.1.vcf.gz
+  Pnapi_bwa_bcftools_nohwe_FR997704.1.vcf.gz
+  Pnapi_ngm_bcftools_cohort_FR997704.1.vcf.gz
+  Pnapi_ngm_bcftools_hwe_FR997704.1.vcf.gz
+  Pnapi_ngm_bcftools_nohwe_FR997704.1.vcf.gz
+)
+
+# 0. Normalise EVERY file the same way before any comparison
+for v in "${VCFS[@]}"; do
+  base=$(basename $v .vcf.gz)
+  bcftools norm -f $REF -m -any -Oz -o $OUT/norm/${base}.norm.vcf.gz $VCFDIR/$v
+  bcftools index -t $OUT/norm/${base}.norm.vcf.gz
+done</code></pre>
+
+<h3>3.1 Tier 1 — per-file QC</h3>
+<pre><code># Stats per file (ts/tv, indel ratio, depth, quality, SFS)
+for v in $OUT/norm/*.norm.vcf.gz; do
+  bcftools stats -s - $v > $OUT/stats/$(basename $v .vcf.gz).stats
+done
+
+# Pretty multi-file plot (uses Python+matplotlib; ships with bcftools)
+plot-vcfstats -p $OUT/stats/plots/ $OUT/stats/*.stats
+
+# Per-sample missingness, heterozygosity, mean depth (vcftools)
+for v in $OUT/norm/*.norm.vcf.gz; do
+  out=$OUT/stats/$(basename $v .norm.vcf.gz)
+  vcftools --gzvcf $v --missing-indv  --out $out
+  vcftools --gzvcf $v --het           --out $out
+  vcftools --gzvcf $v --depth         --out $out
+done</code></pre>
+
+<h3>3.2 Tier 2 — set-level concordance (the <code>bcftools isec</code> bit you mentioned)</h3>
+<pre><code># All-pairs + multi-way intersection across the 6 normalised VCFs
+bcftools isec -p $OUT/isec -Oz $OUT/norm/*.norm.vcf.gz
+
+# Output: 0000.vcf.gz, 0001.vcf.gz, ... and a 'sites.txt' giving the
+# presence/absence bitstring per site -> feeds directly into UpSet.
+# Sites.txt columns: CHR POS REF ALT  111111  (one bit per input)</code></pre>
+
+<details><summary>UpSet plot in R (much more readable than a 6-way Venn)</summary>
+<pre><code># R
+library(UpSetR); library(data.table)
+s <- fread("compare_out/isec/sites.txt",
+           col.names=c("chr","pos","ref","alt","mask"))
+m <- do.call(rbind, lapply(strsplit(s$mask,""), as.integer))
+colnames(m) <- c("bwa_cohort","bwa_hwe","bwa_nohwe",
+                 "ngm_cohort","ngm_hwe","ngm_nohwe")
+upset(as.data.frame(m), nsets=6, order.by="freq",
+      sets.bar.color = c(rep("#2874a6",3), rep("#6c3483",3)))</code></pre>
+</details>
+
+<div class="tip">
+<strong>Go beyond site overlap.</strong> Two VCFs can call the same site but disagree on the <em>genotypes</em>. Use <code>hap.py</code> or RTG <code>vcfeval</code> to get a confusion matrix per pair, stratified by region/MAF. This is what changes π.
+</div>
+
+<pre><code># Pairwise genotype concordance (one VCF as the "truth" reference)
+TRUTH=$OUT/norm/Pnapi_bwa_bcftools_nohwe_FR997704.1.norm.vcf.gz
+for q in $OUT/norm/*.norm.vcf.gz; do
+  [ "$q" = "$TRUTH" ] && continue
+  name=$(basename $q .norm.vcf.gz)
+  hap.py $TRUTH $q -r $REF -o $OUT/isec/happy_${name} \
+         --no-roc --threads 8
+done
+# -> summary.csv with TP/FP/FN, precision, recall, F1, by SNP/INDEL type</code></pre>
+
+<h3>3.3 Tier 3 — genomic-context annotation (SnpEff / VEP)</h3>
+<pre><code># Build / pick the SnpEff database for Pieris napi
+snpEff databases | grep -i napi      # find the right id, e.g. Pieris_napi
+SNPEFFDB=Pieris_napi
+
+for v in $OUT/norm/*.norm.vcf.gz; do
+  base=$(basename $v .norm.vcf.gz)
+  snpEff -csvStats $OUT/annot/${base}.snpeff.csv \
+         -stats    $OUT/annot/${base}.snpeff.html \
+         $SNPEFFDB $v | bgzip > $OUT/annot/${base}.ann.vcf.gz
+  tabix -p vcf $OUT/annot/${base}.ann.vcf.gz
+done
+
+# Cross-tabulate impact category × method
+for v in $OUT/annot/*.ann.vcf.gz; do
+  name=$(basename $v .ann.vcf.gz)
+  bcftools +split-vep $v -f '%CHROM\t%POS\t%INFO/ANN\n' \
+    | awk -F'|' '{print $3}' | sort | uniq -c \
+    | awk -v n=$name '{print n"\t"$2"\t"$1}'
+done > $OUT/annot/impact_by_method.tsv</code></pre>
+
+<details><summary>Alternative: VEP (often preferred for non-model organisms with a GFF)</summary>
+<pre><code>vep --gff Pnapi.gff3.gz --fasta $REF --vcf \
+    -i $OUT/norm/Pnapi_bwa_bcftools_hwe_FR997704.1.norm.vcf.gz \
+    -o $OUT/annot/bwa_hwe.vep.vcf --force_overwrite</code></pre>
+</details>
+
+<p>Also intersect with non-coding context to localise mapper artefacts:</p>
+<pre><code># Repeats and low-complexity regions (drives mapper-disagreement)
+bedtools intersect -a $OUT/isec/sites.bed -b repeats.bed -wa -c \
+  > $OUT/annot/sites_in_repeats.tsv
+
+# Density along the chromosome, per method
+for v in $OUT/norm/*.norm.vcf.gz; do
+  bcftools view -v snps -H $v | awk '{print $1"\t"$2}' \
+    | bedtools makewindows -g $REF.fai -w 50000 \
+    | bedtools intersect -a - -b stdin -c \
+    > $OUT/annot/$(basename $v .norm.vcf.gz).density50kb.bed
+done</code></pre>
+
+<h3>3.4 Tier 4 — population-genomic estimators</h3>
+<div class="warn">
+<strong>For π, dxy, Fst use <code>pixy</code>, not vcftools <code>--window-pi</code>.</strong>
+pixy requires an <em>all-sites VCF</em> (variant + invariant) so that missing data and monomorphic positions are handled correctly. If you only have variant-only VCFs, regenerate with <code>bcftools mpileup ... | bcftools call -m -f GQ --output-tags ... </code> emitting all sites, or use GATK <code>GenotypeGVCFs --include-non-variant-sites</code>.
+</div>
+
+<pre><code># popmap.tsv:  sample_id <TAB> population
+# All-sites VCFs (one per method), gzipped + tabix-indexed
+for v in $OUT/norm/*.allsites.vcf.gz; do
+  name=$(basename $v .allsites.vcf.gz)
+  pixy --stats pi fst dxy \
+       --vcf $v \
+       --populations popmap.tsv \
+       --window_size 50000 \
+       --n_cores 8 \
+       --output_folder $OUT/pixy/$name \
+       --output_prefix $name
+done
+
+# vcftools complements: Tajima's D, LD decay
+for v in $OUT/norm/*.norm.vcf.gz; do
+  out=$OUT/pixy/$(basename $v .norm.vcf.gz)
+  vcftools --gzvcf $v --TajimaD 50000 --out $out
+  vcftools --gzvcf $v --geno-r2 --ld-window-bp 50000 --out $out
+done
+
+# PLINK: PCA, IBS, ROH — is sample structure stable across methods?
+for v in $OUT/norm/*.norm.vcf.gz; do
+  name=$(basename $v .norm.vcf.gz)
+  plink2 --vcf $v --double-id --allow-extra-chr \
+         --maf 0.05 --indep-pairwise 50 5 0.2 \
+         --pca 10 --make-bed --out $OUT/plink/$name
+done</code></pre>
+
+<h3>3.5 Tier 5 — robustness of biological conclusions</h3>
+<p>This is the punchline. For each popgen metric, compute the cross-method agreement; this is what should appear in the paper.</p>
+
+<pre><code># R: are the same 50 kb windows in the top 1% of Fst across methods?
+library(data.table)
+files <- list.files("compare_out/pixy", pattern="_fst.txt$",
+                    recursive=TRUE, full.names=TRUE)
+fst <- rbindlist(lapply(files, function(f){
+  d <- fread(f); d$method <- sub("_fst.txt","",basename(f)); d
+}))
+top <- fst[, .(window=paste(chromosome,window_pos_1,sep=":"),
+               method, avg_wc_fst)]
+wide <- dcast(top, window ~ method, value.var="avg_wc_fst")
+
+# (a) Spearman rank correlation of Fst across methods
+cor(wide[,-1], use="pairwise.complete.obs", method="spearman")
+
+# (b) Jaccard of top-1% outlier windows across methods
+q99 <- sapply(wide[,-1], quantile, 0.99, na.rm=TRUE)
+outliers <- mapply(function(col,thr) wide$window[which(col>=thr)],
+                   wide[,-1], q99, SIMPLIFY=FALSE)
+jacc <- outer(seq_along(outliers), seq_along(outliers),
+              Vectorize(function(i,j){
+                a<-outliers[[i]]; b<-outliers[[j]]
+                length(intersect(a,b))/length(union(a,b))
+              }))
+dimnames(jacc) <- list(names(outliers), names(outliers))
+jacc</code></pre>
+
+<h2>4. The minimum viable comparison (if you only have a day)</h2>
+<ol>
+<li>Normalise all six VCFs (<code>bcftools norm -m -any -f REF</code>).</li>
+<li><code>bcftools stats</code> + <code>plot-vcfstats</code> — one PDF showing ts/tv, SFS, het/hom per file.</li>
+<li><code>bcftools isec</code> → UpSet plot of site overlap, coloured by mapper vs filter axis.</li>
+<li>One SnpEff run on the union set; cross-tabulate impact category × method-of-origin.</li>
+<li>pixy π in 50 kb windows per method → Spearman correlation matrix across methods. Report this matrix.</li>
+</ol>
+<p>If methods agree on (3) and the correlation matrix in (5) is &gt;0.9 off-diagonal, your biology is robust to method choice. If not, the cells where they disagree are the story.</p>
+
+<h2>5. Output you should generate (for the report)</h2>
+<table>
+<tr><th>Figure</th><th>What it shows</th><th>Source</th></tr>
+<tr><td>UpSet plot of site sets</td><td>Which method combinations carry private SNPs</td><td>bcftools isec + UpSetR</td></tr>
+<tr><td>Stacked bar: SnpEff impact × method</td><td>Are private SNPs enriched in repeats / intergenic?</td><td>SnpEff csvStats</td></tr>
+<tr><td>Heatmap: pairwise genotype concordance</td><td>How often does the same site get a different genotype?</td><td>hap.py summaries</td></tr>
+<tr><td>Manhattan-style track of π / Fst per method, overlaid</td><td>Visual agreement of windowed statistics</td><td>pixy output</td></tr>
+<tr><td>Spearman correlation matrix of π, dxy, Fst across methods</td><td>Quantitative robustness</td><td>R, from pixy tables</td></tr>
+<tr><td>PCA biplots, one per method, same colour scheme</td><td>Does population structure inference change?</td><td>PLINK PCA</td></tr>
+</table>
+
+<h2>6. Things easy to get wrong</h2>
+<ul>
+<li><strong>Comparing un-normalised VCFs.</strong> Multi-allelic vs split, left vs right alignment, MNPs — all inflate apparent disagreement. Always <code>bcftools norm -m -any</code> first.</li>
+<li><strong>Using variant-only VCFs for π / dxy.</strong> Underestimates monomorphic denominator and inflates diversity — use all-sites VCFs with pixy.</li>
+<li><strong>Treating HWE-filtering as cosmetic.</strong> It removes biology (selection, structure). Always report popgen estimates with and without it.</li>
+<li><strong>Equating site recall with genotype recall.</strong> A SNP can be called in both VCFs with different GTs — invisible to <code>isec</code>, lethal to π.</li>
+<li><strong>Ignoring callable mask.</strong> Restrict <em>all</em> comparisons to the intersection of per-method callable regions (mosdepth-based mask is fine); otherwise mapper-coverage differences masquerade as variant differences.</li>
+</ul>
+
+<hr>
+<p style="color:#888;font-size:0.85em;">Generated 2026-05-21 for the <code>VCF_compare/Pnapi_chr10_FR997704</code> dataset.</p>
+
+</body>
+</html>
