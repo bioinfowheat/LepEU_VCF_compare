@@ -242,6 +242,26 @@ add("""<div class="key">π correlates 0.96–0.999 across all method pairs — t
 diversity landscape is highly robust to method choice. (But absolute π is sensitive to normalisation —
 see Section 5.)</div>""")
 
+add("<h3>4b. dₓy — between-population divergence (A vs P)</h3>")
+add("""<p>dₓy is the average number of pairwise differences <em>between</em> the two populations per site —
+the between-population analogue of π. Like π it is an absolute diversity measure (a raw difference count),
+not a ratio, so we expect it to behave like π rather than like Fₛₜ.</p>""")
+add('<div class="grid2">')
+add("<div><h4>raw</h4>"+img("dxy_per_method_raw.png")+"</div>")
+add("<div><h4>normalised</h4>"+img("dxy_per_method_norm.png")+"</div>")
+add("</div>")
+add("<h4>Cross-method Spearman correlation of windowed dₓy</h4>")
+add('<div class="grid2">')
+add("<div><h4>raw</h4>"+img("dxy_correlation_raw.png")+"</div>")
+add("<div><h4>normalised</h4>"+img("dxy_correlation_norm.png")+"</div>")
+add("</div>")
+add("""<div class="key"><b>dₓy is robust, like π — and unlike Fₛₜ.</b> Cross-method correlation is
+0.97–0.999 (within-mapper ≥0.995, between-mapper ~0.97–0.98), so the divergence landscape is essentially
+method-independent in shape. This confirms the pattern: <em>absolute</em> diversity measures (π, dₓy) are
+method-robust, whereas the <em>ratio</em> statistic Fₛₜ (§4e) is fragile because it amplifies the
+denominator differences where methods disagree. Note dₓy is subject to the <em>same</em> ~11.5%
+normalisation inflation as π — see §5b.</div>""")
+
 add("<h3>4c. One method vs the other five (windowed π, head-to-head)</h3>")
 add("""<p>The same diagnostic as the raw-vs-norm scatter in §5b, but used to compare <em>methods</em>:
 <code>bwa_cohort</code> is fixed on the x-axis and each of the other five methods is plotted on the y-axis,
@@ -271,7 +291,7 @@ normalisation. Neither the mapper nor the filter changes the size of the effect 
 <code>norm -m -any</code> splitting multi-allelic sites, which pixy then counts per allele. Reinforces the
 practical rule in §5b: use the un-split all-sites VCFs for π/dxy/Fst.</div>""")
 
-add("<h3>4b. Fst — population differentiation (A vs P)</h3>")
+add("<h3>4e. Fst — population differentiation (A vs P)</h3>")
 add('<div class="grid2">')
 add("<div><h4>raw</h4>"+img("fst_per_method_raw.png")+"</div>")
 add("<div><h4>normalised</h4>"+img("fst_per_method_norm.png")+"</div>")
@@ -314,6 +334,17 @@ if sm:
     count_comparisons +0.5%). <b>Practical rule:</b> for pixy / diversity estimation, do <em>not</em>
     pre-split multi-allelics — keep them merged (or use a pixy-aware all-sites pipeline). Use the split,
     normalised VCFs for isec and annotation, but the un-split all-sites VCFs for π/dxy/Fst.</div>""")
+
+add("<h3>5c. The same inflation hits dₓy</h3>")
+add(img("norm_vs_raw_dxy.png","norm vs raw dxy", maxw="640px"))
+if sm and sm.get("dxy_mean_relative_pct") is not None:
+    add(f"""<div class="warn">dₓy is affected by the identical mechanism:
+    <b>{sm.get('dxy_pct_windows_norm_higher',0):.0f}% of windows</b> have higher dₓy after normalisation,
+    by <b>{sm.get('dxy_mean_relative_pct',0):.1f}% on average</b> — essentially the same magnitude as the π
+    inflation. Both absolute diversity statistics (π and dₓy) are biased upward by multi-allelic splitting,
+    so the &ldquo;use un-split all-sites VCFs&rdquo; rule applies to dₓy as well. (Fₛₜ, being a ratio of
+    such quantities, largely cancels this out — its raw-vs-norm correlation stays high — but it is fragile
+    for a different reason, §4e.)</div>""")
 
 # ---------------- TIER 7: INTEGRATIVE --------------------------------------
 add("<h2>6. Integrative analysis — what kind of SNPs do the methods disagree on?</h2>")
@@ -364,10 +395,13 @@ add("""<h2>7. Bottom line</h2>
 <ul>
 <li><b>Mapper &gt; filter.</b> BWA vs NGM is the dominant axis of disagreement (UpSet + Jaccard); the
 cohort/hwe/nohwe filter is a minor perturbation.</li>
-<li><b>π shape is robust, π magnitude is not.</b> Window-to-window π correlates &gt;0.96 across methods,
-but absolute π shifts ~12% if you split multi-allelics before pixy.</li>
-<li><b>Fst is the fragile statistic.</b> Outlier (selection-candidate) windows agree only 0–50% across
-methods — never trust a selection scan from a single VCF.</li>
+<li><b>Absolute diversity (π and dₓy) is robust in shape, not in magnitude.</b> Window-to-window π and dₓy
+both correlate &gt;0.96–0.97 across methods, but both shift up ~12% if you split multi-allelics before pixy.
+Use un-split all-sites VCFs for π/dₓy/Fst.</li>
+<li><b>Fst is the fragile statistic.</b> Cross-method correlation 0.34–0.88, and outlier
+(selection-candidate) windows agree only 0–50% across methods — never trust a selection scan from a single
+VCF. (It is a ratio, so it cancels the normalisation inflation but amplifies the calls where methods
+disagree.)</li>
 <li><b>Annotation is robust.</b> The genomic-context breakdown is near-identical across all six methods.</li>
 <li><b>Discordant SNPs are lower-quality.</b> Method-private SNPs are depleted in synonymous/missense, enriched
 in apparent high-impact classes, and show a falling Ts/Tv toward the random floor — i.e. disagreement is

@@ -24,6 +24,7 @@ python norm_vs_raw.py
 | `norm_vs_raw_pi.png` | all methods pooled: windowed π raw (x) vs norm (y). Points sit **above** y=x — normalisation systematically inflates π by ~12%. |
 | `pi_norm_vs_raw_per_method.png` | the same, one panel per method, each with slope, Spearman ρ, and mean % inflation. |
 | `pi_norm_vs_raw_per_method.tsv` | the numbers behind the per-method panels. |
+| `norm_vs_raw_dxy.png` | between-population dₓy raw (x) vs norm (y). Inflated by ~11.5% too — the **same** multi-allelic-splitting mechanism as π, since dₓy is also an absolute difference count. |
 
 ## The key finding
 

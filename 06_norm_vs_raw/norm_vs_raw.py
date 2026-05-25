@@ -106,8 +106,31 @@ def pi_per_method(root):
     plt.tight_layout(); plt.savefig(root/"plots"/"pi_norm_vs_raw_per_method.png",dpi=140); plt.close()
     pd.DataFrame(stats).T.to_csv(root/"plots"/"pi_norm_vs_raw_per_method.tsv",sep="\t")
 
+def load_stat(root,reg,stat):
+    fr=[]
+    for f in glob.glob(str(root/f"pixy_{reg}"/"**"/f"*_{stat}.txt"),recursive=True):
+        d=pd.read_csv(f,sep="\t"); d["method"]=shortname(f); fr.append(d)
+    return pd.concat(fr,ignore_index=True) if fr else pd.DataFrame()
+
+def dxy_pooled(root):
+    """dxy raw vs norm — same multi-allelic-splitting inflation as pi."""
+    dr=load_stat(root,"raw","dxy"); dn=load_stat(root,"norm","dxy")
+    if dr.empty or dn.empty: return
+    j=dr.merge(dn,on=["method","pop1","pop2","window_pos_1"],suffixes=("_raw","_norm"))
+    j=j[(j.avg_dxy_raw>0)&(j.avg_dxy_norm>0)]
+    rel=float((100*(j.avg_dxy_norm-j.avg_dxy_raw)/j.avg_dxy_raw).mean())
+    lim=[0,max(j.avg_dxy_raw.max(),j.avg_dxy_norm.max())*1.05]
+    fig,ax=plt.subplots(figsize=(6.8,6.8))
+    for mth,s in j.groupby("method"):
+        ax.scatter(s.avg_dxy_raw,s.avg_dxy_norm,s=6,alpha=.4,color=MCOL.get(mth,"k"),label=mth)
+    ax.plot(lim,lim,"k--",lw=1.2,label="y = x"); ax.set_xlim(lim); ax.set_ylim(lim)
+    ax.set_xlabel("dxy per 50 kb window — raw"); ax.set_ylabel("dxy per 50 kb window — normalised")
+    ax.set_title(f"Normalisation inflates dxy by ~{rel:.1f}% too\n(same mechanism as π)")
+    ax.legend(fontsize=7,markerscale=2,loc="lower right")
+    plt.tight_layout(); plt.savefig(root/"plots"/"norm_vs_raw_dxy.png",dpi=140); plt.close()
+
 if __name__=="__main__":
     ap=argparse.ArgumentParser(); ap.add_argument("--root",default="compare_out")
     a=ap.parse_args(); root=Path(a.root); (root/"plots").mkdir(parents=True,exist_ok=True)
-    counts(root); pi_pooled(root); pi_per_method(root)
+    counts(root); pi_pooled(root); pi_per_method(root); dxy_pooled(root)
     print("norm_vs_raw done ->", root/"plots")

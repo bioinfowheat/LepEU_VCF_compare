@@ -61,9 +61,17 @@ count_comparisons +0.5% on a test window). **Use the raw / un-split all-sites VC
 
 - **π:** windowed π correlates 0.96–0.999 across all methods — the *shape* of the
   diversity landscape is robust. (Absolute magnitude is sensitive to normalisation.)
+- **dₓy:** between-population divergence; correlates 0.97–0.999 across methods — robust
+  in shape **like π, and unlike Fₛₜ**, because both π and dₓy are absolute difference
+  counts rather than ratios. Subject to the same ~11.5% normalisation inflation as π
+  (see `06_norm_vs_raw/`).
 - **Fₛₜ:** cross-method correlation only 0.34–0.88, and top-1% outlier (selection-
   candidate) windows overlap just 0–50% across methods. **Fₛₜ scans are method-sensitive
   — never report selection candidates from a single VCF.**
+
+Plots: `dxy_per_method_{raw,norm}.png` (overlaid tracks) and
+`dxy_correlation_{raw,norm}.png` (cross-method Spearman) are produced by
+`lib/analyze_and_plot.py` alongside the π and Fₛₜ figures.
 
 ## Adapting
 

@@ -105,11 +105,14 @@ python lib/make_report.py
 - **Mapper ≫ filter.** BWA-vs-NGM is the dominant axis of disagreement (UpSet + Jaccard);
   the cohort/hwe/nohwe filter is a minor perturbation. Within-mapper site-set Jaccard
   0.92–0.98, between-mapper 0.72–0.78.
-- **π shape robust, π magnitude not.** Windowed π correlates >0.96 across all methods,
-  but splitting multi-allelics with `norm -m -any` before pixy inflates absolute π by
-  ~12% (see `06_norm_vs_raw/`). **Use un-split all-sites VCFs for π/dₓy/Fₛₜ.**
-- **Fₛₜ is fragile.** Top-1% outlier (selection-candidate) windows overlap only 0–50%
-  across methods — never trust a selection scan from a single VCF.
+- **Absolute diversity (π, dₓy) robust in shape, not magnitude.** Windowed π and dₓy
+  both correlate >0.96–0.97 across methods, but splitting multi-allelics with
+  `norm -m -any` before pixy inflates both by ~12% (see `06_norm_vs_raw/`).
+  **Use un-split all-sites VCFs for π/dₓy/Fₛₜ.**
+- **Fₛₜ is fragile.** Cross-method correlation 0.34–0.88; top-1% outlier
+  (selection-candidate) windows overlap only 0–50% across methods — never trust a
+  selection scan from a single VCF. As a ratio it cancels the normalisation inflation
+  but amplifies the calls where methods disagree.
 - **Annotation robust.** Genomic-context breakdown near-identical across all six methods.
 - **Discordant SNPs are lower quality.** Method-private SNPs are depleted in
   synonymous/missense, enriched in apparent high-impact classes, and have a falling

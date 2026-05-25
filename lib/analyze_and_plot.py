@@ -149,6 +149,24 @@ def plot_fst_tracks(df_fst, out_png, title):
     axes[0].legend(loc="upper right", fontsize=8, ncol=2)
     plt.tight_layout(); plt.savefig(out_png, dpi=140); plt.close()
 
+def plot_dxy_tracks(df_dxy, out_png, title):
+    """dxy = between-population divergence; same (pop1,pop2,window) shape as Fst."""
+    if df_dxy.empty: return
+    pairs = df_dxy[["pop1","pop2"]].drop_duplicates().values.tolist()
+    fig, axes = plt.subplots(len(pairs), 1, figsize=(12, 3*len(pairs)), sharex=True)
+    if len(pairs)==1: axes=[axes]
+    for ax,(p1,p2) in zip(axes, pairs):
+        sub = df_dxy[(df_dxy["pop1"]==p1)&(df_dxy["pop2"]==p2)]
+        for m,s in sub.groupby("method"):
+            s = s.sort_values("window_pos_1")
+            ax.plot(s["window_pos_1"]/1e6, s["avg_dxy"], label=m,
+                    color=METHOD_COLORS.get(m,"k"), alpha=0.75, lw=1.0)
+        ax.set_ylabel(f"dxy {p1} vs {p2}")
+    axes[-1].set_xlabel("Position on FR997704.1 (Mb)")
+    axes[0].set_title(title)
+    axes[0].legend(loc="upper right", fontsize=8, ncol=2)
+    plt.tight_layout(); plt.savefig(out_png, dpi=140); plt.close()
+
 def correlation_heatmap(df, value_col, key_cols, out_png, title):
     if df.empty: return
     pivot = df.pivot_table(index=key_cols, columns="method", values=value_col)
@@ -329,11 +347,37 @@ def plot_norm_vs_raw(root, plots):
         ax.legend(fontsize=7, markerscale=2, loc="lower right")
         plt.tight_layout(); plt.savefig(plots/"norm_vs_raw_pi.png", dpi=140); plt.close()
         j["abs_diff"]=j["signed_diff"].abs()
-        return {"pi_mean_abs_diff": float(j["abs_diff"].mean()),
-                "pi_max_abs_diff": float(j["abs_diff"].max()),
-                "pi_mean_relative_pct": mean_rel,
-                "pi_pct_windows_norm_higher": float(100*(j["signed_diff"]>0).mean())}
-    return None
+        out = {"pi_mean_abs_diff": float(j["abs_diff"].mean()),
+               "pi_max_abs_diff": float(j["abs_diff"].max()),
+               "pi_mean_relative_pct": mean_rel,
+               "pi_pct_windows_norm_higher": float(100*(j["signed_diff"]>0).mean())}
+    else:
+        out = {}
+
+    # (c) per-window dxy raw vs norm — does normalisation inflate dxy too?
+    dr = load_pixy(root/"pixy_raw","dxy"); dn = load_pixy(root/"pixy_norm","dxy")
+    if not dr.empty and not dn.empty:
+        key=["method","pop1","pop2","window_pos_1"]
+        jd = dr.merge(dn, on=key, suffixes=("_raw","_norm"))
+        jd = jd[(jd["avg_dxy_raw"]>0)&(jd["avg_dxy_norm"]>0)].copy()
+        jd["sd"]=jd["avg_dxy_norm"]-jd["avg_dxy_raw"]
+        mean_rel_d = float((100*jd["sd"]/jd["avg_dxy_raw"]).mean())
+        fig,ax = plt.subplots(figsize=(6.8,6.8))
+        for meth,s in jd.groupby("method"):
+            ax.scatter(s["avg_dxy_raw"], s["avg_dxy_norm"], s=6, alpha=0.4,
+                       color=METHOD_COLORS.get(meth,"k"), label=meth)
+        lim = [0, max(jd["avg_dxy_raw"].max(), jd["avg_dxy_norm"].max())*1.05]
+        ax.plot(lim, lim, "k--", lw=1.2, label="y = x (no change)")
+        ax.set_xlim(lim); ax.set_ylim(lim)
+        ax.set_xlabel("dxy per 50 kb window — raw VCF")
+        ax.set_ylabel("dxy per 50 kb window — normalised VCF")
+        ax.set_title("Normalisation inflates dxy by ~%.1f%% too\n"
+                     "(same multi-allelic-splitting mechanism as π)" % mean_rel_d)
+        ax.legend(fontsize=7, markerscale=2, loc="lower right")
+        plt.tight_layout(); plt.savefig(plots/"norm_vs_raw_dxy.png", dpi=140); plt.close()
+        out["dxy_mean_relative_pct"] = mean_rel_d
+        out["dxy_pct_windows_norm_higher"] = float(100*(jd["sd"]>0).mean())
+    return out or None
 
 
 # --- main ----------------------------------------------------------------
@@ -389,6 +433,15 @@ def main():
             if corr is not None: corr.to_csv(plots/f"fst_correlation_{regime}.tsv", sep="\t")
             J = outlier_jaccard(fst, "avg_wc_fst", ["pop1","pop2","window_pos_1"])
             J.to_csv(plots/f"fst_outlier_jaccard_{regime}.tsv", sep="\t")
+
+        dxy = load_pixy(root/f"pixy_{regime}", "dxy")
+        if not dxy.empty and "avg_dxy" in dxy.columns:
+            plot_dxy_tracks(dxy, plots/f"dxy_per_method_{regime}.png",
+                            f"dxy — between-population divergence (50 kb windows) — {regime}")
+            corr = correlation_heatmap(dxy, "avg_dxy", ["pop1","pop2","window_pos_1"],
+                                       plots/f"dxy_correlation_{regime}.png",
+                                       f"Spearman corr. of windowed dxy across methods — {regime}")
+            if corr is not None: corr.to_csv(plots/f"dxy_correlation_{regime}.tsv", sep="\t")
 
     # Tier 3
     df_vep = parse_vep_summary(root/"vep")
