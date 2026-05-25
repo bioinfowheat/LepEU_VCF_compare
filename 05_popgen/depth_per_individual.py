@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-Per-INDIVIDUAL read-depth traces (50 kb windows) for two VCFs, overlaid on one axes.
-Default: bwa_hwe and bwa_nohwe. Each of the 14 samples gets its own colour; the two
-VCFs are distinguished by linestyle (hwe = solid, nohwe = dashed).
+Per-INDIVIDUAL read-depth traces (50 kb windows), one PANEL per VCF (stacked, shared
+axes). Default: bwa_hwe (top) and bwa_nohwe (bottom). Each of the 14 samples gets its
+own colour, consistent across panels.
 
 Depth comes from per-sample FORMAT/DP:  bcftools query -f '%CHROM\\t%POS[\\t%DP]\\n'
 binned to 50 kb windows (mean DP per sample per window; missing '.' treated as 0).
@@ -21,10 +21,10 @@ BIN  = "/Users/stockholmbutterflylab/miniforge3/envs/vcfcompare/bin"
 VCFDIR = ROOT/"Pnapi_chr10_FR997704"; PLOTS = ROOT/"compare_out"/"plots"; PLOTS.mkdir(parents=True, exist_ok=True)
 WIN = 50000
 
-# (label, vcf path, linestyle)
+# (label, vcf path)  — one panel per VCF
 VCFS = [
-    ("bwa_hwe",   VCFDIR/"Pnapi_bwa_bcftools_hwe_FR997704.1.vcf.gz",   "-"),
-    ("bwa_nohwe", VCFDIR/"Pnapi_bwa_bcftools_nohwe_FR997704.1.vcf.gz", "--"),
+    ("bwa_hwe",   VCFDIR/"Pnapi_bwa_bcftools_hwe_FR997704.1.vcf.gz"),
+    ("bwa_nohwe", VCFDIR/"Pnapi_bwa_bcftools_nohwe_FR997704.1.vcf.gz"),
 ]
 
 def samples(vcf):
@@ -51,30 +51,26 @@ def main():
     cmap = plt.get_cmap("tab20")
     scol = {s: cmap(i % 20) for i,s in enumerate(samps)}
 
-    fig, ax = plt.subplots(figsize=(14, 6))
+    n = len(VCFS)
+    fig, axes = plt.subplots(n, 1, figsize=(14, 3.6*n), sharex=True, sharey=True)
+    axes = np.atleast_1d(axes)
     allrows = []
-    for label, vcf, ls in VCFS:
+    for ax,(label, vcf) in zip(axes, VCFS):
         df = windowed_per_sample(vcf, samps); df["vcf"] = label; allrows.append(df)
         for s in samps:
             d = df[df["sample"]==s].sort_values("window_pos_1")
-            ax.plot(d["window_pos_1"]/1e6, d["mean_depth"], color=scol[s], ls=ls,
-                    lw=0.9, alpha=0.8)
-        print(f"{label}: {df['sample'].nunique()} samples, "
-              f"overall mean DP {df['mean_depth'].mean():.2f}")
+            ax.plot(d["window_pos_1"]/1e6, d["mean_depth"], color=scol[s], lw=0.9, alpha=0.85)
+        ax.set_ylabel("mean depth in 50 kb (×)")
+        ax.set_title(f"{label}   (overall mean {df['mean_depth'].mean():.2f}×, 14 individuals)", fontsize=11)
+        print(f"{label}: {df['sample'].nunique()} samples, overall mean DP {df['mean_depth'].mean():.2f}")
     pd.concat(allrows, ignore_index=True).to_csv(PLOTS/"depth_per_individual.tsv", sep="\t", index=False)
 
-    ax.set_xlabel("Position on FR997704.1 (Mb)")
-    ax.set_ylabel("mean per-sample depth in 50 kb window (×)")
-    ax.set_title("Per-individual read-depth traces — bwa_hwe (solid) vs bwa_nohwe (dashed), overlaid")
-    # legend 1: individuals (colour)
-    leg1 = ax.legend(handles=[Line2D([0],[0], color=scol[s], lw=2, label=s) for s in samps],
-                     title="individual", ncol=2, fontsize=7, loc="upper left",
-                     bbox_to_anchor=(1.01, 1.0))
-    ax.add_artist(leg1)
-    # legend 2: VCF (linestyle)
-    ax.legend(handles=[Line2D([0],[0], color="k", ls="-",  lw=1.5, label="bwa_hwe"),
-                       Line2D([0],[0], color="k", ls="--", lw=1.5, label="bwa_nohwe")],
-              title="VCF", fontsize=8, loc="upper left", bbox_to_anchor=(1.01, 0.18))
+    axes[-1].set_xlabel("Position on FR997704.1 (Mb)")
+    fig.suptitle("Per-individual read-depth traces — one panel per VCF", fontsize=13)
+    # shared legend (individuals) to the right
+    axes[0].legend(handles=[Line2D([0],[0], color=scol[s], lw=2, label=s) for s in samps],
+                   title="individual", ncol=1, fontsize=7, loc="upper left",
+                   bbox_to_anchor=(1.01, 1.0))
     plt.tight_layout(); plt.savefig(PLOTS/"depth_per_individual.png", dpi=150, bbox_inches="tight"); plt.close()
     print("wrote depth_per_individual.png + .tsv")
 
