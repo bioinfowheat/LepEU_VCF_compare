@@ -87,8 +87,38 @@ add("<h1>VCF comparison — results (v3)</h1>")
 add("<p><em>Pieris napi</em>, chromosome FR997704.1 (= RefSeq NC_062243.1, chr 10). "
     "Six VCFs from the same reads, 14 samples in two populations of 7 (A vs P).</p>")
 
+# ---------------- TABLE OF CONTENTS -----------------------------------------
+add("""
+<nav style="background:#f4f9fd;border:1px solid #cfe0ef;border-radius:8px;padding:1em 1.4em;margin:1.5em 0;">
+<div style="font-weight:700;color:#1b4f72;font-size:1.05em;margin-bottom:0.4em;">Contents</div>
+<ol style="margin:0;padding-left:1.4em;line-height:1.9;">
+  <li><a href="#t0">What is being compared, and why</a></li>
+  <li><a href="#t1">Per-file QC (bcftools stats)</a></li>
+  <li><a href="#t2">Site-set comparison (bcftools isec)</a>
+      <ul style="list-style:none;padding-left:0.6em;margin:0.1em 0;color:#555;">
+        <li>↳ <a href="#t2a">2a. Simple site overlap (raw)</a></li>
+        <li>↳ <a href="#t2b">2b. Full multi-way intersection (UpSetR, 6- &amp; 12-way)</a></li>
+        <li>↳ <a href="#t2c">2c. Pairwise Jaccard similarity (incl. all-12 matrix)</a></li>
+      </ul></li>
+  <li><a href="#t3">Genomic context of SNPs (bcftools csq)</a></li>
+  <li><a href="#t4">Sliding-window population-genomic estimators (pixy)</a>
+      <ul style="list-style:none;padding-left:0.6em;margin:0.1em 0;color:#555;">
+        <li>↳ <a href="#t4a">4a. π — nucleotide diversity</a></li>
+        <li>↳ <a href="#t4b">4b. Fₛₜ — population differentiation</a></li>
+        <li>↳ <a href="#t4c">4c. dₓy — between-population divergence</a></li>
+        <li>↳ <a href="#t4d">4d. One method vs the other five (π)</a></li>
+        <li>↳ <a href="#t4e">4e. Normalised vs raw π, per method</a></li>
+      </ul></li>
+  <li><a href="#t5">What normalisation actually did (raw vs normalised)</a></li>
+  <li><a href="#t6">Integrative analysis — what kind of SNPs do methods disagree on?</a></li>
+  <li><a href="#t7">Bottom line</a></li>
+  <li><a href="#t8">Still on the table (not yet run)</a></li>
+</ol>
+</nav>
+""")
+
 # ---------------- INTRO -----------------------------------------------------
-add("<h2>0. What is being compared, and why</h2>")
+add('<h2 id="t0">0. What is being compared, and why</h2>')
 add("""<p>All six VCFs were produced from the <strong>same sequencing reads</strong> and the
 <strong>same variant caller</strong> (bcftools). They differ along two axes:</p>""")
 add("""<dl>
@@ -124,7 +154,7 @@ intergenic SNPs — making it look like ~98% of SNPs were intronic. v2 keeps tho
 them <em>intergenic / no annotated feature</em>.</div>""")
 
 # ---------------- TIER 1 ----------------------------------------------------
-add("<h2>1. Per-file QC (bcftools stats)</h2>")
+add('<h2 id="t1">1. Per-file QC (bcftools stats)</h2>')
 add("<p>SNP / indel / multi-allelic counts per VCF, raw and normalised.</p>")
 add(stats_table())
 add("""<div class="key"><b>Read this:</b> within each mapper, the three filters give very similar counts,
@@ -133,18 +163,18 @@ After normalisation the <em>multi-allelic sites</em> column drops to 0 (all deco
 rise — see Section 5.</div>""")
 
 # ---------------- TIER 2 ----------------------------------------------------
-add("<h2>2. Site-set comparison (bcftools isec)</h2>")
+add('<h2 id="t2">2. Site-set comparison (bcftools isec)</h2>')
 add("<p>How much of the apparent disagreement between methods is real, and how much is just representation?</p>")
 add(isec_summary())
 add("""<div class="key"><b>Headline:</b> the union of SNP sites shrinks from ~1.71 M (raw) to ~0.65 M
 (normalised), and the fraction shared by all six methods rises. Most of the &ldquo;extra&rdquo; raw
 sites were the same variants written differently.</div>""")
 
-add("<h3>2a. Simple site overlap (raw)</h3>")
+add('<h3 id="t2a">2a. Simple site overlap (raw)</h3>')
 add("<p>The compact view kept from v1 — a quick read on how the six sets pile up.</p>")
 add(img("isec_sites_raw.png","site overlap raw"))
 
-add("<h3>2b. Full multi-way intersection — UpSetR</h3>")
+add('<h3 id="t2b">2b. Full multi-way intersection — UpSetR</h3>')
 add("""<p>Produced in R with the <b>UpSetR</b> package (via <code>scripts/upset_tier2.Rmd</code>). Each
 bar is the number of SNP sites belonging to <em>exactly</em> the method-combination marked by the filled
 dots below it; the left-hand bars are each method's total set size (blue = BWA, purple = NGM). UpSet is
@@ -172,7 +202,7 @@ other isolate variants that exist <em>only after</em> (or <em>only before</em>) 
 representational differences. Because raw and normalised of the same method otherwise co-occur, the plot
 confirms that normalisation reshapes representation rather than discovering or losing real variants.</div>""")
 
-add("<h3>2c. Pairwise Jaccard similarity — what it is and how to read it</h3>")
+add('<h3 id="t2c">2c. Pairwise Jaccard similarity — what it is and how to read it</h3>')
 add("""<p>The UpSet plot shows every intersection at once; the <b>Jaccard matrix</b> condenses the
 pairwise picture into a single similarity score for every pair of methods.</p>
 <p>For two SNP-site sets <i>A</i> and <i>B</i>, the <b>Jaccard index</b> is</p>
@@ -207,7 +237,7 @@ is no more similar to an NGM set <em>after</em> normalisation than before — co
 BWA-vs-NGM gap is biological/mapping, not a representation artefact that normalisation could fix.</div>""")
 
 # ---------------- TIER 3 ----------------------------------------------------
-add("<h2>3. Genomic context of SNPs (bcftools csq + extracted GFF)</h2>")
+add('<h2 id="t3">3. Genomic context of SNPs (bcftools csq + extracted GFF)</h2>')
 add("""<p>Every SNP classified by the GFF feature it falls in. <b>Important distinction:</b>
 <em>intronic</em> = the SNP is inside an annotated gene but in an intron; <em>intergenic / no annotated
 feature</em> = the SNP is outside every annotated transcript (bcftools csq emits no consequence tag for
@@ -226,9 +256,15 @@ add("""<div class="key">Of coding/splice SNPs: ~55% synonymous, ~32% splice_regi
 small numbers of splice donor/acceptor, stop/start gained-lost, and non-coding-RNA variants. Again,
 strikingly consistent across methods — annotation conclusions are robust to mapper/filter choice.</div>""")
 
-# ---------------- TIER 4 ----------------------------------------------------
-add("<h2>4. Population-genomic estimators (pixy, 50 kb windows)</h2>")
-add("<h3>4a. π — nucleotide diversity</h3>")
+# ---------------- TIER 4 : SLIDING-WINDOW POPGEN ---------------------------
+add('<h2 id="t4">4. Sliding-window population-genomic estimators (pixy, 50 kb windows)</h2>')
+add("""<p>All three windowed estimators are presented together below, in the order <b>nucleotide
+diversity (π) → Fₛₜ → dₓy</b>. For each, per-method tracks along the chromosome (raw and normalised) are
+followed by the cross-method Spearman correlation matrix. Two π-specific comparison diagnostics
+(method-vs-method, and raw-vs-normalised per method) close the section.</p>""")
+
+# --- 4a. pi ---
+add('<h3 id="t4a">4a. π — nucleotide diversity (within-population)</h3>')
 add('<div class="grid2">')
 add("<div><h4>raw</h4>"+img("pi_per_method_raw.png")+"</div>")
 add("<div><h4>normalised</h4>"+img("pi_per_method_norm.png")+"</div>")
@@ -242,7 +278,31 @@ add("""<div class="key">π correlates 0.96–0.999 across all method pairs — t
 diversity landscape is highly robust to method choice. (But absolute π is sensitive to normalisation —
 see Section 5.)</div>""")
 
-add("<h3>4b. dₓy — between-population divergence (A vs P)</h3>")
+# --- 4b. Fst ---
+add('<h3 id="t4b">4b. Fₛₜ — population differentiation (A vs P)</h3>')
+add('<div class="grid2">')
+add("<div><h4>raw</h4>"+img("fst_per_method_raw.png")+"</div>")
+add("<div><h4>normalised</h4>"+img("fst_per_method_norm.png")+"</div>")
+add("</div>")
+add("<h4>Cross-method Spearman correlation of windowed Fₛₜ</h4>")
+add('<div class="grid2">')
+add("<div><h4>raw</h4>"+img("fst_correlation_raw.png")+"</div>")
+add("<div><h4>normalised</h4>"+img("fst_correlation_norm.png")+"</div>")
+add("</div>")
+add("""<div class="warn"><b>Fₛₜ is NOT robust.</b> Cross-method correlation ranges 0.34–0.88, and
+within-mapper agreement is sometimes worse than between-mapper. Fₛₜ depends on rare alleles, which is
+exactly where methods diverge.</div>""")
+add("<h4>Top-1% Fₛₜ outlier-window agreement (Jaccard)</h4>")
+add('<div class="grid2">')
+add("<div><h4>raw</h4>"+tsv_table("fst_outlier_jaccard_raw.tsv")+"</div>")
+add("<div><h4>normalised</h4>"+tsv_table("fst_outlier_jaccard_norm.tsv")+"</div>")
+add("</div>")
+add("""<div class="warn"><b>Most important caveat for downstream work:</b> the top-1% Fₛₜ windows
+(candidate regions under selection) overlap only 0–50% between method pairs. The list of selection
+candidates is heavily method-dependent — always report it across mappers, not from a single VCF.</div>""")
+
+# --- 4c. dxy ---
+add('<h3 id="t4c">4c. dₓy — between-population divergence (A vs P)</h3>')
 add("""<p>dₓy is the average number of pairwise differences <em>between</em> the two populations per site —
 the between-population analogue of π. Like π it is an absolute diversity measure (a raw difference count),
 not a ratio, so we expect it to behave like π rather than like Fₛₜ.</p>""")
@@ -258,11 +318,12 @@ add("</div>")
 add("""<div class="key"><b>dₓy is robust, like π — and unlike Fₛₜ.</b> Cross-method correlation is
 0.97–0.999 (within-mapper ≥0.995, between-mapper ~0.97–0.98), so the divergence landscape is essentially
 method-independent in shape. This confirms the pattern: <em>absolute</em> diversity measures (π, dₓy) are
-method-robust, whereas the <em>ratio</em> statistic Fₛₜ (§4e) is fragile because it amplifies the
+method-robust, whereas the <em>ratio</em> statistic Fₛₜ (§4b) is fragile because it amplifies the
 denominator differences where methods disagree. Note dₓy is subject to the <em>same</em> ~11.5%
-normalisation inflation as π — see §5b.</div>""")
+normalisation inflation as π — see §5c.</div>""")
 
-add("<h3>4c. One method vs the other five (windowed π, head-to-head)</h3>")
+# --- 4d. one-vs-five pi diagnostic ---
+add('<h3 id="t4d">4d. One method vs the other five (windowed π, head-to-head)</h3>')
 add("""<p>The same diagnostic as the raw-vs-norm scatter in §5b, but used to compare <em>methods</em>:
 <code>bwa_cohort</code> is fixed on the x-axis and each of the other five methods is plotted on the y-axis,
 within a single regime. Each panel reports the slope of a through-origin fit (1.0 = identical magnitude)
@@ -279,7 +340,8 @@ slope drops to ~0.91–0.96 and the scatter widens (ρ ≈ 0.96–0.97): NGM yie
 <em>lower</em> windowed π than BWA. So the residual π difference between methods is, again, a mapper effect
 — not a filtering effect.</div>""")
 
-add("<h3>4d. Normalised vs raw π, one panel per method</h3>")
+# --- 4e. per-method norm vs raw pi diagnostic ---
+add('<h3 id="t4e">4e. Normalised vs raw π, one panel per method</h3>')
 add("""<p>The §5b raw-vs-normalised π scatter, now broken out into one panel per method so the
 normalisation effect can be inspected method-by-method. In every panel raw π is on the x-axis and
 normalised π on the y-axis; each title gives the through-origin slope, Spearman ρ, and the mean per-window
@@ -289,32 +351,10 @@ add("""<div class="key"><b>The effect is remarkably uniform across methods:</b> 
 ≈ 1.12, ρ ≈ 0.998, and a <b>+11–12% mean π inflation</b> with 97–99% of windows higher after
 normalisation. Neither the mapper nor the filter changes the size of the effect — it is driven entirely by
 <code>norm -m -any</code> splitting multi-allelic sites, which pixy then counts per allele. Reinforces the
-practical rule in §5b: use the un-split all-sites VCFs for π/dxy/Fst.</div>""")
-
-add("<h3>4e. Fst — population differentiation (A vs P)</h3>")
-add('<div class="grid2">')
-add("<div><h4>raw</h4>"+img("fst_per_method_raw.png")+"</div>")
-add("<div><h4>normalised</h4>"+img("fst_per_method_norm.png")+"</div>")
-add("</div>")
-add("<h4>Cross-method Spearman correlation of windowed Fst</h4>")
-add('<div class="grid2">')
-add("<div><h4>raw</h4>"+img("fst_correlation_raw.png")+"</div>")
-add("<div><h4>normalised</h4>"+img("fst_correlation_norm.png")+"</div>")
-add("</div>")
-add("""<div class="warn"><b>Fst is NOT robust.</b> Cross-method correlation ranges 0.34–0.88, and
-within-mapper agreement is sometimes worse than between-mapper. Fst depends on rare alleles, which is
-exactly where methods diverge.</div>""")
-add("<h4>Top-1% Fst outlier-window agreement (Jaccard)</h4>")
-add('<div class="grid2">')
-add("<div><h4>raw</h4>"+tsv_table("fst_outlier_jaccard_raw.tsv")+"</div>")
-add("<div><h4>normalised</h4>"+tsv_table("fst_outlier_jaccard_norm.tsv")+"</div>")
-add("</div>")
-add("""<div class="warn"><b>Most important caveat for downstream work:</b> the top-1% Fst windows
-(candidate regions under selection) overlap only 0–50% between method pairs. The list of selection
-candidates is heavily method-dependent — always report it across mappers, not from a single VCF.</div>""")
+practical rule in §5b: use the un-split all-sites VCFs for π/dₓy/Fₛₜ.</div>""")
 
 # ---------------- TIER 5: NORM vs RAW --------------------------------------
-add("<h2>5. What normalisation actually did (raw vs normalised, head-to-head)</h2>")
+add('<h2 id="t5">5. What normalisation actually did (raw vs normalised, head-to-head)</h2>')
 add("<h3>5a. Record counts before vs after <code>bcftools norm -m -any</code></h3>")
 add(img("norm_vs_raw_counts.png","norm vs raw counts"))
 add("""<div class="key"><b>This is normalisation in action:</b> the <em>multi-allelic sites</em> bars
@@ -344,10 +384,10 @@ if sm and sm.get("dxy_mean_relative_pct") is not None:
     inflation. Both absolute diversity statistics (π and dₓy) are biased upward by multi-allelic splitting,
     so the &ldquo;use un-split all-sites VCFs&rdquo; rule applies to dₓy as well. (Fₛₜ, being a ratio of
     such quantities, largely cancels this out — its raw-vs-norm correlation stays high — but it is fragile
-    for a different reason, §4e.)</div>""")
+    for a different reason, §4b.)</div>""")
 
 # ---------------- TIER 7: INTEGRATIVE --------------------------------------
-add("<h2>6. Integrative analysis — what kind of SNPs do the methods disagree on?</h2>")
+add('<h2 id="t6">6. Integrative analysis — what kind of SNPs do the methods disagree on?</h2>')
 add("""<p>The previous tiers established <em>that</em> methods disagree and <em>where</em> the disagreement
 sits along the mapper/filter axes. This section asks the biologically pointed question: of the SNPs that
 are method-discordant, are they a random sample of the genome, or are they enriched for particular kinds
@@ -391,7 +431,7 @@ hap.py/vcfeval stratified by MAF; and intersecting the discordant SNPs with a <b
 mask</b> to test whether the mapper-private SNPs sit in repetitive sequence.</div>""")
 
 # ---------------- CODA ------------------------------------------------------
-add("""<h2>7. Bottom line</h2>
+add("""<h2 id="t7">7. Bottom line</h2>
 <ul>
 <li><b>Mapper &gt; filter.</b> BWA vs NGM is the dominant axis of disagreement (UpSet + Jaccard); the
 cohort/hwe/nohwe filter is a minor perturbation.</li>
@@ -407,7 +447,7 @@ disagree.)</li>
 in apparent high-impact classes, and show a falling Ts/Tv toward the random floor — i.e. disagreement is
 concentrated in the least trustworthy calls. Treat single-method high-impact variants with suspicion.</li>
 </ul>""")
-add("""<h2>Still on the table (not yet run)</h2>
+add("""<h2 id="t8">Still on the table (not yet run)</h2>
 <ul>
 <li><b>VEP proper</b> (Docker/Linux) and <b>SnpEff</b> — independent cross-checks on the csq annotation.</li>
 <li><b>repeats.bed intersection</b> — test whether the ~200k BWA-only / ~96k NGM-only SNPs sit in repeats.</li>
