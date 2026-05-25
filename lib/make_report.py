@@ -109,6 +109,7 @@ add("""
         <li>↳ <a href="#t4d">4d. One method vs the other five (π)</a></li>
         <li>↳ <a href="#t4e">4e. Normalised vs raw π, per method</a></li>
         <li>↳ <a href="#t4f">4f. All three measures together (combined genome scan)</a></li>
+        <li>↳ <a href="#t4g">4g. Fₛₜ estimator comparison — Weir &amp; Cockerham vs Hudson</a></li>
       </ul></li>
   <li><a href="#t5">What normalisation actually did (raw vs normalised)</a></li>
   <li><a href="#t6">Integrative analysis — what kind of SNPs do methods disagree on?</a></li>
@@ -303,6 +304,9 @@ add("</div>")
 add("""<div class="warn"><b>Most important caveat for downstream work:</b> the top-1% Fₛₜ windows
 (candidate regions under selection) overlap only 0–50% between method pairs. The list of selection
 candidates is heavily method-dependent — always report it across mappers, not from a single VCF.</div>""")
+add("""<p><em>This Fₛₜ uses the default Weir &amp; Cockerham estimator; §4g compares it against the Hudson
+estimator (<code>--fst_type hudson</code>) — the choice changes peak values and interacts with the calling
+method.</em></p>""")
 
 # --- 4c. dxy ---
 add('<h3 id="t4c">4c. dₓy — between-population divergence (A vs P)</h3>')
@@ -373,6 +377,38 @@ method lines are visibly more spread in the Fₛₜ panel than in the π/dₓy p
 contrast quantified in §4a–4b, now visible at a glance. This panel is the synthesis of section 4: it shows
 both the biology (covarying diversity and differentiation along the chromosome) and the methodology (which
 statistics are method-stable).</div>""")
+
+# --- 4g. Fst estimator comparison: WC vs Hudson ---
+add('<h3 id="t4g">4g. Fₛₜ estimator comparison — Weir &amp; Cockerham vs Hudson</h3>')
+add("""<p>The Fₛₜ in §4b uses pixy's default <b>Weir &amp; Cockerham (1984)</b> estimator. pixy also offers
+the <b>Hudson (1992; Bhatia et al. 2013)</b> estimator (<code>--fst_type hudson</code>), which uses a
+ratio-of-averages formulation that is less biased under unequal sample sizes and is often preferred for
+genome scans. Both were run on all six methods (raw and normalised); below, each window's WC value (x) is
+plotted against its Hudson value (y), one panel per method.</p>""")
+add("<h4>Within raw</h4>")
+add(img("fst_wc_vs_hudson_raw.png","wc vs hudson raw"))
+add("<h4>Within normalised</h4>")
+add(img("fst_wc_vs_hudson_norm.png","wc vs hudson norm"))
+add(tsv_table("fst_estimator_summary.tsv"))
+add("""<div class="key"><b>The estimator choice is not cosmetic — and it interacts with the calling method.</b>
+(1) Hudson is <em>systematically slightly higher</em> than WC at differentiated windows (mean Hudson−WC
++0.01 to +0.045; points sit above y=x), so reported peak-Fₛₜ values depend on which estimator you cite.
+(2) Agreement is <b>method-dependent</b>: for the <code>cohort</code>/<code>hwe</code> call sets the two
+track each other tightly (Pearson 0.85–0.99), but for <code>bwa_nohwe</code>, <code>ngm_cohort</code> and
+<code>ngm_nohwe</code> they diverge markedly (Pearson 0.12–0.55; rank ρ down to ~0.53). The divergence is
+concentrated at the high-Fₛₜ outlier windows — exactly the windows a selection scan cares about. (Pearson
+is pulled down by those few high-leverage windows; Spearman is the more stable summary.)</div>""")
+add("<h4>Does Hudson change the cross-method robustness picture?</h4>")
+add('<div class="grid2">')
+add("<div><h4>raw</h4>"+img("fst_hudson_correlation_raw.png","hudson corr raw")+"</div>")
+add("<div><h4>normalised</h4>"+img("fst_hudson_correlation_norm.png","hudson corr norm")+"</div>")
+add("</div>")
+add("""<div class="key"><b>Hudson is somewhat more method-robust than WC.</b> Cross-method Spearman
+correlation of windowed Hudson Fₛₜ ranges ~0.58–0.94 (raw), a higher floor than the WC equivalent in §4b
+(0.34–0.88). So while Fₛₜ remains the most method-sensitive statistic overall, the Hudson estimator
+tightens cross-method agreement — a reason to prefer it for between-method comparisons. <b>Bottom line:</b>
+report which Fₛₜ estimator you used, and ideally show both; the WC-vs-Hudson gap is largest precisely at the
+outlier windows that drive biological interpretation.</div>""")
 
 # ---------------- TIER 5: NORM vs RAW --------------------------------------
 add('<h2 id="t5">5. What normalisation actually did (raw vs normalised, head-to-head)</h2>')

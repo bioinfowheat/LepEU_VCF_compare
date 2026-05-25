@@ -35,6 +35,10 @@ Two things that trip people up:
    un-split (raw) ones — see `../05_popgen/README.md`. The intersection / UpSet /
    Jaccard / annotation steps work on ordinary variant VCFs.
 
+> **Comparing Fₛₜ estimators:** `run_all.sh` uses pixy's default Weir & Cockerham Fₛₜ.
+> To also compute the Hudson estimator and compare them, adapt `../05_popgen/pixy_hudson.sh`
+> (just adds `--fst_type hudson`) and `../05_popgen/fst_hudson_compare.py` to your labels.
+
 ## 2. Configure
 
 Edit `config.sh`. The only thing that really matters is the two parallel arrays:

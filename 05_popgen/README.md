@@ -79,6 +79,37 @@ so diversity, differentiation and divergence can be read against each other alon
 chromosome. In this test case π and dₓy crash together at ≈3 Mb and ≈7 Mb, coinciding
 with the Fₛₜ peaks — the classic low-diversity/reduced-recombination signature.
 
+## Fₛₜ estimator: Weir & Cockerham vs Hudson
+
+pixy's default Fₛₜ is **Weir & Cockerham (1984)** (`avg_wc_fst`). The **Hudson
+(1992; Bhatia et al. 2013)** estimator (`--fst_type hudson`, column `avg_hudson_fst`)
+uses a ratio-of-averages formulation that is less biased under unequal sample sizes
+and is often preferred for genome scans.
+
+```bash
+bash pixy_hudson.sh          # re-runs Fst only, with --fst_type hudson, into pixy_hudson_{raw,norm}/
+python fst_hudson_compare.py # WC-vs-Hudson scatter, Hudson tracks + cross-method correlation
+```
+
+Core change vs `pixy.sh`:
+```bash
+pixy --stats fst --fst_type hudson --vcf in.vcf.gz --populations popmap.tsv \
+     --window_size 50000 --output_folder out/ --output_prefix base
+```
+
+Outputs (→ `figures/`): `fst_wc_vs_hudson_{raw,norm}.png` (per-method scatter),
+`fst_hudson_per_method_{raw,norm}.png` (Hudson tracks),
+`fst_hudson_correlation_{raw,norm}.png` (Hudson cross-method Spearman), and
+`fst_estimator_summary.tsv`.
+
+**Findings (this test case):** Hudson is systematically slightly higher than WC at
+differentiated windows (mean Hudson−WC +0.01 to +0.045), and the two **agree well for
+the cohort/hwe call sets (Pearson 0.85–0.99) but diverge for `nohwe` and `ngm_cohort`
+(Pearson 0.12–0.55)** — the divergence concentrated at the high-Fₛₜ outlier windows
+that matter for selection scans. Hudson's cross-method correlation (~0.58–0.94) has a
+higher floor than WC's (0.34–0.88), i.e. it is somewhat more robust to the calling
+method. **Always state which estimator you used.**
+
 ## Adapting
 
 Edit `VCFDIR`, `NORMDIR`, `POPMAP`, `--window_size`, `--n_cores` in `pixy.sh`. Replace
