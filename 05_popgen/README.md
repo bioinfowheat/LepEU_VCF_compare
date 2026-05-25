@@ -130,9 +130,17 @@ Run it on the **raw all-sites** VCFs so depth is sampled at ~every base (not jus
 SNPs). Depth is a property of the mapping, so the three filters share one curve per
 mapper (the `.ldepth.mean` files are byte-identical within a mapper here).
 
-`depth_windows.py` also writes `depth_per_window.tsv`, which `lib/analyze_and_plot.py`
-picks up to add a **depth panel on top of the combined genome scan**
-(`combined_tracks_{raw,norm}.png`).
+`depth_windows.py` writes, for **every VCF independently** (no assumption that they
+share a profile):
+- `depth_per_file.png` — one panel per VCF (the "show all files" view)
+- `depth_mean_per_file.png` (+ `.tsv`) — genome-wide mean depth per file (bar)
+- `depth_per_method.png` — all files overlaid
+- `depth_per_window.tsv` — which `lib/analyze_and_plot.py` picks up to add a **depth
+  panel on top of the combined genome scan** (`combined_tracks_{raw,norm}.png`).
+
+In this dataset the three filters within a mapper give byte-identical depth
+(md5-verified), so the six files reduce to two profiles — but each is computed and
+plotted separately so that is demonstrated, not assumed.
 
 **Findings (this test case):** BWA averages **8.94×** vs NGM **8.16×** (~9% more) —
 the direct cause of BWA calling ~10% more SNPs (more reads → more callable sites). And

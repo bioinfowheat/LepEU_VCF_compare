@@ -20,6 +20,7 @@ import matplotlib.pyplot as plt
 ROOT = Path("/Users/stockholmbutterflylab/sbl_claudecode/VCF_compare")
 OUT = ROOT/"compare_out"; PLOTS = OUT/"plots"; PLOTS.mkdir(parents=True, exist_ok=True)
 WIN = 50000
+METHODS = ["bwa_cohort","bwa_hwe","bwa_nohwe","ngm_cohort","ngm_hwe","ngm_nohwe"]
 METHOD_COLORS = {"bwa_cohort":"#1f77b4","bwa_hwe":"#4a90c2","bwa_nohwe":"#7eb0d5",
                  "ngm_cohort":"#6c3483","ngm_hwe":"#8e44ad","ngm_nohwe":"#b07cc6"}
 def method_ls(m): return "--" if str(m).endswith("_hwe") else "-"
@@ -50,17 +51,54 @@ def main():
     df = pd.concat(frames, ignore_index=True)
     df.to_csv(PLOTS/"depth_per_window.tsv", sep="\t", index=False)
 
+    present = [m for m in METHODS if m in set(df["method"])] + \
+              [m for m in df["method"].unique() if m not in METHODS]
+
+    # (1) overlay — all files on one axis
     fig, ax = plt.subplots(figsize=(13, 4.2))
-    for m, s in df.groupby("method"):
-        s = s.sort_values("window_pos_1")
+    for m in present:
+        s = df[df["method"]==m].sort_values("window_pos_1")
         ax.plot(s["window_pos_1"]/1e6, s["mean_depth"], label=m,
                 color=METHOD_COLORS.get(m,"k"), ls=method_ls(m), alpha=0.8, lw=1.0)
     ax.set_xlabel("Position on FR997704.1 (Mb)")
     ax.set_ylabel("mean depth per sample (×)")
-    ax.set_title("Mean read depth in 50 kb windows (vcftools --site-mean-depth)")
+    ax.set_title("Mean read depth in 50 kb windows (vcftools --site-mean-depth) — all files overlaid")
     ax.legend(loc="upper right", fontsize=8, ncol=3)
     plt.tight_layout(); plt.savefig(PLOTS/"depth_per_method.png", dpi=140); plt.close()
-    print("wrote depth_per_method.png + depth_per_window.tsv")
+
+    # (2) faceted — one panel per FILE, so each is individually visible (no assumption)
+    ncol = 3; nrow = int(np.ceil(len(present)/ncol))
+    fig, axes = plt.subplots(nrow, ncol, figsize=(16, 3.2*nrow), sharex=True, sharey=True)
+    axes = np.atleast_2d(axes)
+    means = {}
+    for i, m in enumerate(present):
+        ax = axes[i//ncol][i%ncol]
+        s = df[df["method"]==m].sort_values("window_pos_1")
+        mu = float(s["mean_depth"].mean()); means[m] = mu
+        ax.plot(s["window_pos_1"]/1e6, s["mean_depth"],
+                color=METHOD_COLORS.get(m,"k"), ls=method_ls(m), lw=1.0)
+        ax.axhline(mu, color="grey", lw=0.7, ls=":")
+        ax.set_title(f"{m}   (mean {mu:.2f}×)", fontsize=10)
+    for j in range(len(present), nrow*ncol): axes[j//ncol][j%ncol].set_visible(False)
+    for ax in axes[-1]: ax.set_xlabel("Position on FR997704.1 (Mb)")
+    for r in range(nrow): axes[r][0].set_ylabel("mean depth (×)")
+    fig.suptitle("Read depth per window — one panel per VCF (vcftools --site-mean-depth)", fontsize=13)
+    plt.tight_layout(); plt.savefig(PLOTS/"depth_per_file.png", dpi=140); plt.close()
+
+    # (3) genome-wide mean depth per file — bar (makes any between-file difference obvious)
+    fig, ax = plt.subplots(figsize=(8.5, 4.5))
+    vals = [means[m] for m in present]
+    ax.bar(range(len(present)), vals, color=[METHOD_COLORS.get(m,"k") for m in present])
+    ax.set_xticks(range(len(present))); ax.set_xticklabels(present, rotation=30, ha="right")
+    ax.set_ylabel("genome-wide mean depth per sample (×)")
+    ax.set_title("Mean read depth per VCF file")
+    for i,v in enumerate(vals): ax.text(i, v+0.05, f"{v:.2f}", ha="center", fontsize=9)
+    plt.tight_layout(); plt.savefig(PLOTS/"depth_mean_per_file.png", dpi=140); plt.close()
+    pd.DataFrame({"method":present, "genome_mean_depth":vals}).to_csv(
+        PLOTS/"depth_mean_per_file.tsv", sep="\t", index=False)
+
+    print("wrote depth_per_method.png, depth_per_file.png, depth_mean_per_file.png + tsvs")
+    print("per-file genome mean depth:", {m: round(means[m],3) for m in present})
 
 if __name__ == "__main__":
     main()

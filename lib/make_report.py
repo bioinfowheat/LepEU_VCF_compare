@@ -110,7 +110,7 @@ add("""
         <li>↳ <a href="#t4e">4e. Normalised vs raw π, per method</a></li>
         <li>↳ <a href="#t4f">4f. All measures together (combined genome scan, with depth)</a></li>
         <li>↳ <a href="#t4g">4g. Fₛₜ estimator comparison — Weir &amp; Cockerham vs Hudson</a></li>
-        <li>↳ <a href="#t4h">4h. Mean read depth per window (QC overlay)</a></li>
+        <li>↳ <a href="#t4h">4h. Mean read depth per window — all six files</a></li>
       </ul></li>
   <li><a href="#t5">What normalisation actually did (raw vs normalised)</a></li>
   <li><a href="#t6">Integrative analysis — what kind of SNPs do methods disagree on?</a></li>
@@ -431,23 +431,33 @@ report which Fₛₜ estimator you used, and ideally show both; the WC-vs-Hudson
 outlier windows that drive biological interpretation.</div>""")
 
 # --- 4h. read depth per window ---
-add('<h3 id="t4h">4h. Mean read depth per window (QC overlay)</h3>')
+add('<h3 id="t4h">4h. Mean read depth per window — all six files</h3>')
 add("""<p>Average per-sample read depth in the same 50 kb windows, from
 <code>vcftools --gzvcf &lt;raw all-sites VCF&gt; --site-mean-depth</code> (which averages the per-sample
-<code>FORMAT/DP</code> at every position across the 14 samples), binned to windows. Because the input is the
-all-sites VCF, depth is sampled at essentially every base, not just at SNPs. Depth is a property of the
-mapping, so it is computed from the raw VCFs and the three filters (cohort/hwe/nohwe) share one curve per
-mapper.</p>""")
-add(img("depth_per_method.png","depth per window"))
-add("""<div class="key"><b>Two things depth explains:</b> (1) <b>BWA averages 8.94× vs NGM 8.16×</b>
-(~9% more) genome-wide — and within each mapper the three filters are identical — which is the direct cause
-of BWA calling ~10% more SNPs (§1): more reads mapped → more callable sites. (2) The <b>≈7 Mb depth spike to
-~22×</b> (≈2.5× the background) flags a <b>collapsed-repeat / paralog region</b>: reads from duplicated
-copies pile up there, inflating apparent heterozygosity differences. That window is exactly where Fₛₜ peaks
-(§4b) and π/dₓy collapse — so the depth track reclassifies that &ldquo;differentiation peak&rdquo; as a
-likely <b>mapping artefact</b>, not a selection signal. <b>This is why depth belongs in the scan</b>: it is
-the first thing to check before believing an Fₛₜ outlier. A practical follow-up is to mask windows with
-depth &gt; ~2× the chromosome median (and unusually low-depth windows) before any selection scan.</div>""")
+<code>FORMAT/DP</code> at every position across the 14 samples), binned to windows and computed
+<b>independently for every one of the six VCFs</b> (no assumption that they share a depth profile). Because
+the input is the all-sites VCF, depth is sampled at essentially every base, not just at SNPs.</p>""")
+add("<h4>One panel per VCF</h4>")
+add(img("depth_per_file.png","depth per file"))
+add("<h4>Genome-wide mean depth per file, and all files overlaid</h4>")
+add('<div class="grid2">')
+add("<div>"+img("depth_mean_per_file.png","mean depth per file")+"</div>")
+add("<div>"+img("depth_per_method.png","depth overlaid")+"</div>")
+add("""<div class="key"><b>Empirically (md5-verified, not assumed):</b> the three filters within a mapper
+produce <em>byte-identical</em> depth files — depth is set by the mapping, and cohort/hwe/nohwe do not change
+it. So the six files collapse to two distinct profiles. <b>BWA 8.94× vs NGM 8.16×</b> (~9% more): different
+data could of course differ by filter, which is exactly why each file is computed and shown separately
+here.</div>""")
+add("</div>")
+add("""<div class="key"><b>Two things depth explains:</b> (1) the <b>BWA 8.94× vs NGM 8.16×</b> gap is the
+direct cause of BWA calling ~10% more SNPs (§1): more reads mapped → more callable sites. (2) The
+<b>≈7 Mb depth spike to ~22×</b> (≈2.5× the background, visible in every BWA and NGM panel) flags a
+<b>collapsed-repeat / paralog region</b>: reads from duplicated copies pile up there, inflating apparent
+heterozygosity differences. That window is exactly where Fₛₜ peaks (§4b) and π/dₓy collapse — so the depth
+track reclassifies that &ldquo;differentiation peak&rdquo; as a likely <b>mapping artefact</b>, not a
+selection signal. <b>This is why depth belongs in the scan</b>: it is the first thing to check before
+believing an Fₛₜ outlier. A practical follow-up is to mask windows with depth &gt; ~2× the chromosome median
+(and unusually low-depth windows) before any selection scan.</div>""")
 
 # ---------------- TIER 5: NORM vs RAW --------------------------------------
 add('<h2 id="t5">5. What normalisation actually did (raw vs normalised, head-to-head)</h2>')
