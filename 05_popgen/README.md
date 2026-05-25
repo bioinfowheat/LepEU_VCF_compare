@@ -73,6 +73,12 @@ Plots: `dxy_per_method_{raw,norm}.png` (overlaid tracks) and
 `dxy_correlation_{raw,norm}.png` (cross-method Spearman) are produced by
 `lib/analyze_and_plot.py` alongside the π and Fₛₜ figures.
 
+**Combined genome scan:** `combined_tracks_{raw,norm}.png` stacks all three
+measures (π mean of A,P → Fₛₜ → dₓy) sharing the x-axis, all six methods overlaid,
+so diversity, differentiation and divergence can be read against each other along the
+chromosome. In this test case π and dₓy crash together at ≈3 Mb and ≈7 Mb, coinciding
+with the Fₛₜ peaks — the classic low-diversity/reduced-recombination signature.
+
 ## Adapting
 
 Edit `VCFDIR`, `NORMDIR`, `POPMAP`, `--window_size`, `--n_cores` in `pixy.sh`. Replace

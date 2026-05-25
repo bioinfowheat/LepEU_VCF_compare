@@ -108,6 +108,7 @@ add("""
         <li>↳ <a href="#t4c">4c. dₓy — between-population divergence</a></li>
         <li>↳ <a href="#t4d">4d. One method vs the other five (π)</a></li>
         <li>↳ <a href="#t4e">4e. Normalised vs raw π, per method</a></li>
+        <li>↳ <a href="#t4f">4f. All three measures together (combined genome scan)</a></li>
       </ul></li>
   <li><a href="#t5">What normalisation actually did (raw vs normalised)</a></li>
   <li><a href="#t6">Integrative analysis — what kind of SNPs do methods disagree on?</a></li>
@@ -352,6 +353,24 @@ add("""<div class="key"><b>The effect is remarkably uniform across methods:</b> 
 normalisation. Neither the mapper nor the filter changes the size of the effect — it is driven entirely by
 <code>norm -m -any</code> splitting multi-allelic sites, which pixy then counts per allele. Reinforces the
 practical rule in §5b: use the un-split all-sites VCFs for π/dₓy/Fₛₜ.</div>""")
+
+# --- 4f. all three measures together (combined genome scan) ---
+add('<h3 id="t4f">4f. All three measures together — combined genome scan</h3>')
+add("""<p>The three windowed estimators (§4a–4c) stacked in one figure and <b>sharing the x-axis</b>, so
+they can be read against each other along the chromosome: π (mean of the two populations) on top, Fₛₜ
+(A vs P) in the middle, dₓy (A vs P) at the bottom. All six methods are overlaid in every panel.</p>""")
+add('<div class="grid2">')
+add("<div><h4>raw</h4>"+img("combined_tracks_raw.png","combined tracks raw")+"</div>")
+add("<div><h4>normalised</h4>"+img("combined_tracks_norm.png","combined tracks norm")+"</div>")
+add("</div>")
+add("""<div class="key"><b>What the aligned view shows:</b> (1) π and dₓy track each other almost exactly —
+both are absolute diversity measures and both bundle tightly across the six methods; (2) the regions where
+π and dₓy crash toward zero (≈3 Mb and ≈7 Mb) coincide with the sharp <b>Fₛₜ peaks</b> — the classic
+signature of low-diversity / reduced-recombination regions where differentiation is inflated; (3) the
+method lines are visibly more spread in the Fₛₜ panel than in the π/dₓy panels — the same robustness
+contrast quantified in §4a–4b, now visible at a glance. This panel is the synthesis of section 4: it shows
+both the biology (covarying diversity and differentiation along the chromosome) and the methodology (which
+statistics are method-stable).</div>""")
 
 # ---------------- TIER 5: NORM vs RAW --------------------------------------
 add('<h2 id="t5">5. What normalisation actually did (raw vs normalised, head-to-head)</h2>')

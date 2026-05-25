@@ -167,6 +167,36 @@ def plot_dxy_tracks(df_dxy, out_png, title):
     axes[0].legend(loc="upper right", fontsize=8, ncol=2)
     plt.tight_layout(); plt.savefig(out_png, dpi=140); plt.close()
 
+def plot_combined_tracks(pi, fst, dxy, out_png, title):
+    """Stack the 3 windowed measures (π, Fst, dxy) sharing the x-axis so they can
+    be read against each other along the chromosome. One line per method.
+    π is averaged across the two populations to keep one line per method."""
+    if pi.empty or fst.empty or dxy.empty: return
+    fig, axes = plt.subplots(3, 1, figsize=(13, 10), sharex=True)
+    # panel 1: π (mean over populations, per method)
+    pim = (pi.groupby(["method","window_pos_1"], as_index=False)["avg_pi"].mean())
+    for m,s in pim.groupby("method"):
+        s = s.sort_values("window_pos_1")
+        axes[0].plot(s["window_pos_1"]/1e6, s["avg_pi"], label=m,
+                     color=METHOD_COLORS.get(m,"k"), alpha=0.75, lw=1.0)
+    axes[0].set_ylabel("π (mean A,P)")
+    # panel 2: Fst (A vs P)
+    for m,s in fst.groupby("method"):
+        s = s.sort_values("window_pos_1")
+        axes[1].plot(s["window_pos_1"]/1e6, s["avg_wc_fst"], label=m,
+                     color=METHOD_COLORS.get(m,"k"), alpha=0.75, lw=1.0)
+    axes[1].set_ylabel("Fst (A vs P)"); axes[1].axhline(0, color="grey", lw=0.5, ls=":")
+    # panel 3: dxy (A vs P)
+    for m,s in dxy.groupby("method"):
+        s = s.sort_values("window_pos_1")
+        axes[2].plot(s["window_pos_1"]/1e6, s["avg_dxy"], label=m,
+                     color=METHOD_COLORS.get(m,"k"), alpha=0.75, lw=1.0)
+    axes[2].set_ylabel("dxy (A vs P)")
+    axes[2].set_xlabel("Position on FR997704.1 (Mb)")
+    axes[0].set_title(title)
+    axes[0].legend(loc="upper right", fontsize=8, ncol=3)
+    plt.tight_layout(); plt.savefig(out_png, dpi=140); plt.close()
+
 def correlation_heatmap(df, value_col, key_cols, out_png, title):
     if df.empty: return
     pivot = df.pivot_table(index=key_cols, columns="method", values=value_col)
@@ -442,6 +472,12 @@ def main():
                                        plots/f"dxy_correlation_{regime}.png",
                                        f"Spearman corr. of windowed dxy across methods — {regime}")
             if corr is not None: corr.to_csv(plots/f"dxy_correlation_{regime}.tsv", sep="\t")
+
+        # combined 3-measure genome scan (π / Fst / dxy stacked, shared x-axis)
+        if not pi.empty and not fst.empty and not dxy.empty:
+            plot_combined_tracks(pi, fst, dxy,
+                                 plots/f"combined_tracks_{regime}.png",
+                                 f"π, Fst and dxy along FR997704.1 (50 kb windows) — {regime}")
 
     # Tier 3
     df_vep = parse_vep_summary(root/"vep")
