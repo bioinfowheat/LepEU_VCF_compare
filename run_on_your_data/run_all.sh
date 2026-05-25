@@ -46,10 +46,12 @@ echo ">>> intersection: $(wc -l < "$OUTDIR/isec/sites.txt") union SNP sites"
 # ---------------------------------------------------------------------------
 # 3. UpSet plot (R / UpSetR) + pairwise Jaccard (python). Both read labels.txt.
 # ---------------------------------------------------------------------------
+# NB: rmarkdown::render chdir's to the Rmd folder, so we pass ABSOLUTE paths and
+# also set knit_root_dir; that way relative paths would resolve sanely too.
 Rscript -e ".libPaths('$R_LIBS_DIR'); Sys.setenv(RSTUDIO_PANDOC='$PANDOC_DIR'); \
   rmarkdown::render('$HERE/upset_generic.Rmd', \
     params=list(sites='$OUTDIR/isec/sites.txt', labels='$OUTDIR/labels.txt', outdir='$OUTDIR/plots'), \
-    output_file='upset.html', output_dir='$OUTDIR', quiet=TRUE)"
+    knit_root_dir='$PWD', output_file='upset.html', output_dir='$OUTDIR', quiet=TRUE)"
 python "$HERE/jaccard_generic.py" --sites "$OUTDIR/isec/sites.txt" --labels "$OUTDIR/labels.txt" --outdir "$OUTDIR/plots"
 echo ">>> wrote $OUTDIR/plots/upset.png and jaccard.png"
 

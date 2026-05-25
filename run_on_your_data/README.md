@@ -122,15 +122,19 @@ you never edit the Rmd itself — `run_all.sh` passes everything in. To run it b
 (e.g. to tweak the figure), call `rmarkdown::render` with `params`:
 
 ```bash
+# Use ABSOLUTE paths: rmarkdown::render() chdir's into the Rmd's folder, so
+# relative paths would be resolved from there. (run_all.sh handles this for you.)
+OUT="$PWD/compare_out"
 Rscript -e '
 .libPaths("~/R_libs_vcfcompare")
 Sys.setenv(RSTUDIO_PANDOC="'"$HOME"'/miniforge3/envs/vcfcompare/bin")   # rmarkdown needs pandoc
 rmarkdown::render("upset_generic.Rmd",
   params = list(
-    sites  = "compare_out/isec/sites.txt",
-    labels = "compare_out/labels.txt",
-    outdir = "compare_out/plots"),
-  output_file = "upset.html", output_dir = "compare_out", quiet = TRUE)'
+    sites  = "'"$OUT"'/isec/sites.txt",
+    labels = "'"$OUT"'/labels.txt",
+    outdir = "'"$OUT"'/plots"),
+  knit_root_dir = "'"$PWD"'",
+  output_file = "upset.html", output_dir = "'"$OUT"'", quiet = TRUE)'
 ```
 
 What the Rmd does, step by step (all in the `setup` chunk):
