@@ -108,8 +108,9 @@ add("""
         <li>↳ <a href="#t4c">4c. dₓy — between-population divergence</a></li>
         <li>↳ <a href="#t4d">4d. One method vs the other five (π)</a></li>
         <li>↳ <a href="#t4e">4e. Normalised vs raw π, per method</a></li>
-        <li>↳ <a href="#t4f">4f. All three measures together (combined genome scan)</a></li>
+        <li>↳ <a href="#t4f">4f. All measures together (combined genome scan, with depth)</a></li>
         <li>↳ <a href="#t4g">4g. Fₛₜ estimator comparison — Weir &amp; Cockerham vs Hudson</a></li>
+        <li>↳ <a href="#t4h">4h. Mean read depth per window (QC overlay)</a></li>
       </ul></li>
   <li><a href="#t5">What normalisation actually did (raw vs normalised)</a></li>
   <li><a href="#t6">Integrative analysis — what kind of SNPs do methods disagree on?</a></li>
@@ -371,12 +372,14 @@ normalisation. Neither the mapper nor the filter changes the size of the effect 
 practical rule in §5b: use the un-split all-sites VCFs for π/dₓy/Fₛₜ.</div>""")
 
 # --- 4f. all three measures together (combined genome scan) ---
-add('<h3 id="t4f">4f. All three measures together — combined genome scan</h3>')
-add("""<p>The windowed estimators (§4a–4c, §4g) stacked in one figure and <b>sharing the x-axis</b>, so they
-can be read against each other along the chromosome: <b>π</b> (mean of the two populations) on top, then
-<b>Fₛₜ (Weir &amp; Cockerham)</b>, then <b>Fₛₜ (Hudson)</b>, then <b>dₓy</b> (all A vs P) at the bottom.
-Both Fₛₜ estimators are shown so they can be compared against each other and against π/dₓy in the same view.
-All six methods are overlaid in every panel.</p>""")
+add('<h3 id="t4f">4f. All measures together — combined genome scan (with depth)</h3>')
+add("""<p>The windowed estimators (§4a–4c, §4g) plus <b>mean read depth</b> (§4h), stacked in one figure and
+<b>sharing the x-axis</b>, so they can be read against each other along the chromosome: <b>depth</b> on top
+(the QC context), then <b>π</b> (mean of the two populations), <b>Fₛₜ (Weir &amp; Cockerham)</b>,
+<b>Fₛₜ (Hudson)</b>, and <b>dₓy</b> (all A vs P). Both Fₛₜ estimators are shown so they can be compared
+against each other and against π/dₓy; depth on top lets you check whether a signal coincides with a coverage
+anomaly. All six methods are overlaid in every panel (depth is mapper-driven, so the three lines per mapper
+coincide).</p>""")
 add('<div class="grid2">')
 add("<div><h4>raw</h4>"+img("combined_tracks_raw.png","combined tracks raw")+"</div>")
 add("<div><h4>normalised</h4>"+img("combined_tracks_norm.png","combined tracks norm")+"</div>")
@@ -387,9 +390,13 @@ both are absolute diversity measures and both bundle tightly across the six meth
 estimator panels — the classic signature of low-diversity / reduced-recombination regions where
 differentiation is inflated; (3) the two Fₛₜ panels agree on <em>where</em> the peaks are but Hudson reaches
 <em>higher</em> at them (see §4g); (4) the method lines are visibly more spread in the Fₛₜ panels than in the
-π/dₓy panels — the same robustness contrast quantified in §4a–4b, now visible at a glance. This panel is the
-synthesis of section 4: it shows both the biology (covarying diversity and differentiation along the
-chromosome) and the methodology (which statistics, and which estimators, are method-stable).</div>""")
+π/dₓy panels — the same robustness contrast quantified in §4a–4b, now visible at a glance;
+<b>(5) the depth panel is the key QC overlay</b>: the ≈7 Mb Fₛₜ peak sits directly under a sharp
+<b>depth spike</b> (≈22× vs the ≈9× background), the hallmark of a collapsed repeat / paralog where reads
+from duplicated copies pile up and mis-call differentiation — i.e. that peak is most likely a mapping
+artefact, not selection. This panel is the synthesis of section 4: it shows the biology (covarying diversity
+and differentiation), the methodology (which statistics/estimators are method-stable), and the QC (which
+signals coincide with coverage anomalies).</div>""")
 
 # --- 4g. Fst estimator comparison: WC vs Hudson ---
 add('<h3 id="t4g">4g. Fₛₜ estimator comparison — Weir &amp; Cockerham vs Hudson</h3>')
@@ -422,6 +429,25 @@ correlation of windowed Hudson Fₛₜ ranges ~0.58–0.94 (raw), a higher floor
 tightens cross-method agreement — a reason to prefer it for between-method comparisons. <b>Bottom line:</b>
 report which Fₛₜ estimator you used, and ideally show both; the WC-vs-Hudson gap is largest precisely at the
 outlier windows that drive biological interpretation.</div>""")
+
+# --- 4h. read depth per window ---
+add('<h3 id="t4h">4h. Mean read depth per window (QC overlay)</h3>')
+add("""<p>Average per-sample read depth in the same 50 kb windows, from
+<code>vcftools --gzvcf &lt;raw all-sites VCF&gt; --site-mean-depth</code> (which averages the per-sample
+<code>FORMAT/DP</code> at every position across the 14 samples), binned to windows. Because the input is the
+all-sites VCF, depth is sampled at essentially every base, not just at SNPs. Depth is a property of the
+mapping, so it is computed from the raw VCFs and the three filters (cohort/hwe/nohwe) share one curve per
+mapper.</p>""")
+add(img("depth_per_method.png","depth per window"))
+add("""<div class="key"><b>Two things depth explains:</b> (1) <b>BWA averages 8.94× vs NGM 8.16×</b>
+(~9% more) genome-wide — and within each mapper the three filters are identical — which is the direct cause
+of BWA calling ~10% more SNPs (§1): more reads mapped → more callable sites. (2) The <b>≈7 Mb depth spike to
+~22×</b> (≈2.5× the background) flags a <b>collapsed-repeat / paralog region</b>: reads from duplicated
+copies pile up there, inflating apparent heterozygosity differences. That window is exactly where Fₛₜ peaks
+(§4b) and π/dₓy collapse — so the depth track reclassifies that &ldquo;differentiation peak&rdquo; as a
+likely <b>mapping artefact</b>, not a selection signal. <b>This is why depth belongs in the scan</b>: it is
+the first thing to check before believing an Fₛₜ outlier. A practical follow-up is to mask windows with
+depth &gt; ~2× the chromosome median (and unusually low-depth windows) before any selection scan.</div>""")
 
 # ---------------- TIER 5: NORM vs RAW --------------------------------------
 add('<h2 id="t5">5. What normalisation actually did (raw vs normalised, head-to-head)</h2>')
@@ -516,6 +542,9 @@ disagree.)</li>
 <li><b>Discordant SNPs are lower-quality.</b> Method-private SNPs are depleted in synonymous/missense, enriched
 in apparent high-impact classes, and show a falling Ts/Tv toward the random floor — i.e. disagreement is
 concentrated in the least trustworthy calls. Treat single-method high-impact variants with suspicion.</li>
+<li><b>Depth explains the mapper gap and flags artefacts.</b> BWA averages 8.9× vs NGM 8.2× (→ BWA's extra
+SNPs); and the ≈7 Mb Fₛₜ peak sits on a ~22× depth spike (collapsed repeat), so it is most likely a mapping
+artefact. Overlay per-window depth (§4h) before trusting any Fₛₜ outlier.</li>
 </ul>""")
 add("""<h2 id="t8">Still on the table (not yet run)</h2>
 <ul>

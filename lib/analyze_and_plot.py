@@ -173,23 +173,33 @@ def plot_dxy_tracks(df_dxy, out_png, title):
     axes[0].legend(loc="upper right", fontsize=8, ncol=2)
     plt.tight_layout(); plt.savefig(out_png, dpi=140); plt.close()
 
-def plot_combined_tracks(pi, fst, dxy, out_png, title, hud=None):
+def plot_combined_tracks(pi, fst, dxy, out_png, title, hud=None, depth=None):
     """Stack the windowed measures sharing the x-axis so they can be read against
     each other along the chromosome. One line per method. π is averaged across the
     two populations to keep one line per method. If `hud` (Hudson Fst) is given, a
-    separate Hudson-Fst panel is added below the default (Weir & Cockerham) Fst."""
+    separate Hudson-Fst panel is added below the default (Weir & Cockerham) Fst.
+    If `depth` (per-window mean depth) is given, it is added as the TOP panel — so
+    you can see whether π/Fst/dxy signals coincide with depth anomalies."""
     if pi.empty or fst.empty or dxy.empty: return
     have_hud = hud is not None and not hud.empty and "avg_hudson_fst" in hud.columns
-    npan = 4 if have_hud else 3
+    have_dep = depth is not None and not depth.empty and "mean_depth" in depth.columns
+    npan = 3 + int(have_hud) + int(have_dep)
     fig, axes = plt.subplots(npan, 1, figsize=(13, 3.0*npan), sharex=True)
     k = 0
+    # depth (TOP panel, optional) — QC context for the popgen signals below
+    if have_dep:
+        for m,s in depth.groupby("method"):
+            s = s.sort_values("window_pos_1")
+            axes[k].plot(s["window_pos_1"]/1e6, s["mean_depth"], label=m,
+                         color=METHOD_COLORS.get(m,"k"), ls=method_ls(m), alpha=0.75, lw=1.0)
+        axes[k].set_ylabel("mean depth (×)"); k+=1
     # π (mean over populations, per method)
     pim = (pi.groupby(["method","window_pos_1"], as_index=False)["avg_pi"].mean())
     for m,s in pim.groupby("method"):
         s = s.sort_values("window_pos_1")
         axes[k].plot(s["window_pos_1"]/1e6, s["avg_pi"], label=m,
                      color=METHOD_COLORS.get(m,"k"), ls=method_ls(m), alpha=0.75, lw=1.0)
-    axes[k].set_ylabel("π (mean A,P)"); axes[k].legend(loc="upper right", fontsize=8, ncol=3); k+=1
+    axes[k].set_ylabel("π (mean A,P)"); k+=1
     # Fst — Weir & Cockerham (default)
     for m,s in fst.groupby("method"):
         s = s.sort_values("window_pos_1")
@@ -211,6 +221,7 @@ def plot_combined_tracks(pi, fst, dxy, out_png, title, hud=None):
     axes[k].set_ylabel("dxy (A vs P)")
     axes[k].set_xlabel("Position on FR997704.1 (Mb)")
     axes[0].set_title(title)
+    axes[0].legend(loc="upper right", fontsize=8, ncol=3)
     plt.tight_layout(); plt.savefig(out_png, dpi=140); plt.close()
 
 def correlation_heatmap(df, value_col, key_cols, out_png, title):
@@ -489,13 +500,15 @@ def main():
                                        f"Spearman corr. of windowed dxy across methods — {regime}")
             if corr is not None: corr.to_csv(plots/f"dxy_correlation_{regime}.tsv", sep="\t")
 
-        # combined genome scan (π / Fst-WC / Fst-Hudson / dxy stacked, shared x-axis)
+        # combined genome scan (depth / π / Fst-WC / Fst-Hudson / dxy stacked, shared x-axis)
         hud = load_pixy(root/f"pixy_hudson_{regime}", "fst")
+        dep_tsv = plots/"depth_per_window.tsv"   # regime-independent (from raw all-sites)
+        depth = pd.read_csv(dep_tsv, sep="\t") if dep_tsv.exists() else None
         if not pi.empty and not fst.empty and not dxy.empty:
             plot_combined_tracks(pi, fst, dxy,
                                  plots/f"combined_tracks_{regime}.png",
-                                 f"π, Fst (W&C + Hudson) and dxy along FR997704.1 (50 kb windows) — {regime}",
-                                 hud=hud)
+                                 f"depth, π, Fst (W&C + Hudson) and dxy along FR997704.1 (50 kb windows) — {regime}",
+                                 hud=hud, depth=depth)
 
     # Tier 3
     df_vep = parse_vep_summary(root/"vep")

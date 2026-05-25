@@ -110,6 +110,38 @@ that matter for selection scans. Hudson's cross-method correlation (~0.58–0.94
 higher floor than WC's (0.34–0.88), i.e. it is somewhat more robust to the calling
 method. **Always state which estimator you used.**
 
+## Mean read depth per window (QC overlay)
+
+Average per-sample depth in the same 50 kb windows — the key QC track to read
+*alongside* π/Fₛₜ/dₓy, because depth anomalies flag mapping artefacts.
+
+```bash
+bash depth_windows.sh     # vcftools --site-mean-depth on the raw all-sites VCFs
+python depth_windows.py   # bins to 50 kb windows -> depth_per_window.tsv + depth_per_method.png
+```
+
+Core command:
+```bash
+vcftools --gzvcf raw_allsites.vcf.gz --site-mean-depth --out out
+# -> out.ldepth.mean : CHROM POS MEAN_DEPTH VAR_DEPTH  (MEAN_DEPTH = mean FORMAT/DP over samples)
+```
+
+Run it on the **raw all-sites** VCFs so depth is sampled at ~every base (not just
+SNPs). Depth is a property of the mapping, so the three filters share one curve per
+mapper (the `.ldepth.mean` files are byte-identical within a mapper here).
+
+`depth_windows.py` also writes `depth_per_window.tsv`, which `lib/analyze_and_plot.py`
+picks up to add a **depth panel on top of the combined genome scan**
+(`combined_tracks_{raw,norm}.png`).
+
+**Findings (this test case):** BWA averages **8.94×** vs NGM **8.16×** (~9% more) —
+the direct cause of BWA calling ~10% more SNPs (more reads → more callable sites). And
+a **depth spike to ~22× at ≈7 Mb** (≈2.5× background) marks a collapsed-repeat /
+paralog region; that window is exactly where Fₛₜ peaks and π/dₓy collapse, so the depth
+track reclassifies that &ldquo;differentiation peak&rdquo; as a likely mapping
+artefact. **Check the depth track before trusting any Fₛₜ outlier**; a practical filter
+is to mask windows with depth &gt; ~2× the chromosome median (and very low-depth ones).
+
 ## Adapting
 
 Edit `VCFDIR`, `NORMDIR`, `POPMAP`, `--window_size`, `--n_cores` in `pixy.sh`. Replace
