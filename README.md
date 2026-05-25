@@ -69,13 +69,22 @@ held constant, every difference is attributable to **read placement (mapper)** o
 | `06_norm_vs_raw/` | 6 | direct raw-vs-normalised comparison (counts + π) |
 | `07_integrative/` | 7 | enrichment of method-discordant SNPs + Ts/Tv quality signal |
 | `lib/` | — | shared plotting engine (`analyze_and_plot.py`) + report builder (`make_report.py`) |
+| `run_on_your_data/` | — | **generalised, config-driven re-run** on *your own* VCFs (any number); detailed walkthrough of the intersection + UpSetR (RMD) steps |
 | `figures/` | — | all generated PNGs and summary TSVs |
 | `reports/` | — | the assembled HTML report(s) |
 
 Each step folder has its own `README.md` with the exact commands, parameter
 explanations, inputs/outputs, and notes on adapting it to your own data.
 
-## Quick start
+## Running it on your own VCFs
+
+If you just want to compare your own call sets (any number, any methods), go to
+**[`run_on_your_data/`](run_on_your_data/)** — edit one config file and run one script.
+That folder also contains the most detailed walkthrough of the SNP-set intersection
+and the UpSetR (RMarkdown) analysis. The per-step folders below document the methods
+in depth on the demo dataset.
+
+## Quick start (demo dataset)
 
 ```bash
 # 0. tools

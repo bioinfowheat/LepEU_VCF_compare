@@ -167,9 +167,11 @@ rise — see Section 5.</div>""")
 add('<h2 id="t2">2. Site-set comparison (bcftools isec)</h2>')
 add("<p>How much of the apparent disagreement between methods is real, and how much is just representation?</p>")
 add(isec_summary())
-add("""<div class="key"><b>Headline:</b> the union of SNP sites shrinks from ~1.71 M (raw) to ~0.65 M
-(normalised), and the fraction shared by all six methods rises. Most of the &ldquo;extra&rdquo; raw
-sites were the same variants written differently.</div>""")
+add("""<div class="key"><b>Headline:</b> the key number is the <em>fraction of SNP sites shared by all six
+methods</em>, which <b>rises from 68.8% (raw) to 71.9% (normalised)</b> — normalisation improves
+cross-method concordance. The union <em>count</em> itself goes slightly up (1.71 M → 1.79 M), not down,
+because <code>-m -any</code> splits multi-allelic SNP sites into more bi-allelic records; the right way to
+read the effect is therefore the shared-fraction column, not the raw union size.</div>""")
 
 add('<h3 id="t2a">2a. Simple site overlap (raw)</h3>')
 add("<p>The compact view kept from v1 — a quick read on how the six sets pile up.</p>")

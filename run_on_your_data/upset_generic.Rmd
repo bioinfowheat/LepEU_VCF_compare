@@ -1,0 +1,72 @@
+---
+title: "Multi-way SNP-site intersection (UpSetR) — generic"
+output:
+  html_document:
+    toc: true
+    theme: flatly
+params:
+  sites: "compare_out/isec/sites.txt"   # bcftools-isec sites.txt (col 5 = N-bit mask)
+  labels: "compare_out/labels.txt"      # one label per line, in the isec input order
+  outdir: "compare_out/plots"
+---
+
+```{r setup, include=FALSE}
+# point at the user library where UpSetR is installed (also passed via Rscript)
+.libPaths(c("~/R_libs_vcfcompare", .libPaths()))
+library(data.table); library(UpSetR)
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE, dev = "png", dpi = 150)
+dir.create(params$outdir, showWarnings = FALSE, recursive = TRUE)
+
+labels <- readLines(params$labels)
+labels <- labels[nzchar(labels)]
+nlab <- length(labels)
+
+s <- fread(params$sites, header = FALSE,
+           col.names = c("chr","pos","ref","alt","mask"),
+           colClasses = c("character","integer","character","character","character"))
+stopifnot(all(nchar(s$mask) == nlab))   # mask length must equal number of labels
+
+M <- as.data.frame(do.call(rbind, lapply(strsplit(s$mask, ""), as.integer)))
+colnames(M) <- labels
+```
+
+## What this shows
+
+Each VCF contributes a **set** of SNP sites. The UpSet plot decomposes the overlap
+of all `r nlab` sets into every observed *intersection pattern*: each top bar is the
+number of SNP sites belonging to **exactly** the combination marked by the filled dots
+below it; the left bars are each set's total size. UpSet is the readable alternative to
+an N-way Venn (which needs 2^N − 1 regions).
+
+```{r upset, fig.width=max(12, nlab*1.1), fig.height=max(6, nlab*0.7)}
+cat("Union SNP sites:", nrow(M), " across", nlab, "call sets\n")
+upset(M, sets = rev(labels), keep.order = TRUE,
+      nintersects = 40, order.by = "freq",
+      main.bar.color = "#34495e", matrix.color = "#c0392b",
+      sets.bar.color = "#2874a6",
+      mainbar.y.label = "SNP sites in intersection",
+      sets.x.label = "SNPs per call set",
+      text.scale = c(1.4, 1.3, 1.1, 1.0, 1.2, 1.0))
+```
+
+## Export a standalone PNG (embedded into reports / shared)
+
+```{r export}
+png(file.path(params$outdir, "upset.png"),
+    width = max(12, nlab*1.1), height = max(6, nlab*0.7), units = "in", res = 150)
+print(upset(M, sets = rev(labels), keep.order = TRUE,
+            nintersects = 40, order.by = "freq",
+            main.bar.color = "#34495e", matrix.color = "#c0392b",
+            sets.bar.color = "#2874a6",
+            mainbar.y.label = "SNP sites in intersection",
+            sets.x.label = "SNPs per call set",
+            text.scale = c(1.4, 1.3, 1.1, 1.0, 1.2, 1.0)))
+dev.off()
+cat("Wrote", file.path(params$outdir, "upset.png"), "\n")
+```
+
+## Tip: colour the set bars by group
+
+If your labels fall into groups (e.g. two mappers), replace `sets.bar.color` with a
+vector the same length as `labels` (in `rev(labels)` order), e.g.
+`sets.bar.color = rev(ifelse(grepl("^bwa", labels), "#2874a6", "#6c3483"))`.

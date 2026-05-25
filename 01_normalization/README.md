@@ -12,8 +12,10 @@ The same variant can be written several valid ways: an indel placed at different
 positions inside a repeat, a multi-allelic site packed into one row vs split across
 rows, an MNP vs adjacent SNPs, untrimmed REF/ALT. Without normalisation, `bcftools
 isec` counts these as *different* sites and the methods look far more discordant than
-they are. In this study the union of SNP sites drops **1.71 M → 0.65 M** after
-normalisation — most of the "extra" raw sites were just representation.
+they are. In this study normalisation **raises the fraction of SNP sites shared by all
+six methods from 68.8% to 71.9%** — i.e. it improves cross-method concordance. (The
+union *count* goes slightly up, 1.71 M → 1.79 M, because `-m -any` splits multi-allelic
+SNP sites into more bi-allelic records; read the shared-fraction, not the union size.)
 
 ## What `bcftools norm -m -any` does
 
