@@ -84,6 +84,14 @@ That folder also contains the most detailed walkthrough of the SNP-set intersect
 and the UpSetR (RMarkdown) analysis. The per-step folders below document the methods
 in depth on the demo dataset.
 
+## Reproducing everything / starting over on a new computer
+
+**[`REPRODUCE.md`](REPRODUCE.md)** is the complete operator's manual: full environment
+setup, the exact run order of every script, how the HTML report is assembled, how to
+adapt it to a new VCF set, a ready-to-paste briefing for a **fresh Claude Code instance**,
+and a "gotchas & lessons learned" section (contig-name fix, all-sites VCFs for pixy, the
+multi-allelic π inflation, csq-vs-VEP, depth/goleft, etc.). Read it before reproducing.
+
 ## Quick start (demo dataset)
 
 ```bash
