@@ -29,6 +29,12 @@ METHOD_COLORS = {
     "bwa_cohort":"#1f77b4","bwa_hwe":"#4a90c2","bwa_nohwe":"#7eb0d5",
     "ngm_cohort":"#6c3483","ngm_hwe":"#8e44ad","ngm_nohwe":"#b07cc6"}
 
+def method_ls(m):
+    """Linestyle for sliding-window tracks: the MIDDLE shade of each 3-step colour
+    gradient (the *_hwe method) is drawn dashed so the three lines in a group
+    (cohort=dark solid, hwe=medium dashed, nohwe=light solid) are easy to tell apart."""
+    return "--" if str(m).endswith("_hwe") else "-"
+
 def shortname(path):
     b = os.path.basename(path)
     m = re.search(r"Pnapi_(\w+)_bcftools_(\w+)_FR997704", b)
@@ -125,7 +131,7 @@ def plot_pi_tracks(df_pi, out_png, title):
         for m,s in sub.groupby("method"):
             s = s.sort_values("window_pos_1")
             ax.plot(s["window_pos_1"]/1e6, s["avg_pi"], label=m,
-                    color=METHOD_COLORS.get(m,"k"), alpha=0.75, lw=1.0)
+                    color=METHOD_COLORS.get(m,"k"), ls=method_ls(m), alpha=0.75, lw=1.0)
         ax.set_ylabel(f"π — pop {pop}")
     axes[-1].set_xlabel("Position on FR997704.1 (Mb)")
     axes[0].set_title(title)
@@ -142,7 +148,7 @@ def plot_fst_tracks(df_fst, out_png, title):
         for m,s in sub.groupby("method"):
             s = s.sort_values("window_pos_1")
             ax.plot(s["window_pos_1"]/1e6, s["avg_wc_fst"], label=m,
-                    color=METHOD_COLORS.get(m,"k"), alpha=0.75, lw=1.0)
+                    color=METHOD_COLORS.get(m,"k"), ls=method_ls(m), alpha=0.75, lw=1.0)
         ax.set_ylabel(f"Fst {p1} vs {p2}")
     axes[-1].set_xlabel("Position on FR997704.1 (Mb)")
     axes[0].set_title(title)
@@ -160,7 +166,7 @@ def plot_dxy_tracks(df_dxy, out_png, title):
         for m,s in sub.groupby("method"):
             s = s.sort_values("window_pos_1")
             ax.plot(s["window_pos_1"]/1e6, s["avg_dxy"], label=m,
-                    color=METHOD_COLORS.get(m,"k"), alpha=0.75, lw=1.0)
+                    color=METHOD_COLORS.get(m,"k"), ls=method_ls(m), alpha=0.75, lw=1.0)
         ax.set_ylabel(f"dxy {p1} vs {p2}")
     axes[-1].set_xlabel("Position on FR997704.1 (Mb)")
     axes[0].set_title(title)
@@ -182,26 +188,26 @@ def plot_combined_tracks(pi, fst, dxy, out_png, title, hud=None):
     for m,s in pim.groupby("method"):
         s = s.sort_values("window_pos_1")
         axes[k].plot(s["window_pos_1"]/1e6, s["avg_pi"], label=m,
-                     color=METHOD_COLORS.get(m,"k"), alpha=0.75, lw=1.0)
+                     color=METHOD_COLORS.get(m,"k"), ls=method_ls(m), alpha=0.75, lw=1.0)
     axes[k].set_ylabel("π (mean A,P)"); axes[k].legend(loc="upper right", fontsize=8, ncol=3); k+=1
     # Fst — Weir & Cockerham (default)
     for m,s in fst.groupby("method"):
         s = s.sort_values("window_pos_1")
         axes[k].plot(s["window_pos_1"]/1e6, s["avg_wc_fst"], label=m,
-                     color=METHOD_COLORS.get(m,"k"), alpha=0.75, lw=1.0)
+                     color=METHOD_COLORS.get(m,"k"), ls=method_ls(m), alpha=0.75, lw=1.0)
     axes[k].set_ylabel("Fst W&C (A vs P)"); axes[k].axhline(0, color="grey", lw=0.5, ls=":"); k+=1
     # Fst — Hudson (optional)
     if have_hud:
         for m,s in hud.groupby("method"):
             s = s.sort_values("window_pos_1")
             axes[k].plot(s["window_pos_1"]/1e6, s["avg_hudson_fst"], label=m,
-                         color=METHOD_COLORS.get(m,"k"), alpha=0.75, lw=1.0)
+                         color=METHOD_COLORS.get(m,"k"), ls=method_ls(m), alpha=0.75, lw=1.0)
         axes[k].set_ylabel("Fst Hudson (A vs P)"); axes[k].axhline(0, color="grey", lw=0.5, ls=":"); k+=1
     # dxy (A vs P)
     for m,s in dxy.groupby("method"):
         s = s.sort_values("window_pos_1")
         axes[k].plot(s["window_pos_1"]/1e6, s["avg_dxy"], label=m,
-                     color=METHOD_COLORS.get(m,"k"), alpha=0.75, lw=1.0)
+                     color=METHOD_COLORS.get(m,"k"), ls=method_ls(m), alpha=0.75, lw=1.0)
     axes[k].set_ylabel("dxy (A vs P)")
     axes[k].set_xlabel("Position on FR997704.1 (Mb)")
     axes[0].set_title(title)

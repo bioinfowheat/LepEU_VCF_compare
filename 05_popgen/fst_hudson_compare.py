@@ -26,6 +26,10 @@ def shortname(p):
     m=re.search(r"Pnapi_(\w+)_bcftools_(\w+)_FR997704", os.path.basename(p))
     return f"{m.group(1)}_{m.group(2)}" if m else os.path.basename(p)
 
+def method_ls(m):
+    # middle shade of each colour gradient (*_hwe) drawn dashed (matches analyze_and_plot.py)
+    return "--" if str(m).endswith("_hwe") else "-"
+
 def load_fst(pixy_dir):
     fr=[]
     for f in glob.glob(str(pixy_dir/"**"/"*_fst.txt"), recursive=True):
@@ -75,7 +79,8 @@ for regime in ("raw","norm"):
         sub=hud[(hud.pop1==p1)&(hud.pop2==p2)]
         for m,s in sub.groupby("method"):
             s=s.sort_values("window_pos_1")
-            ax.plot(s["window_pos_1"]/1e6, s[hud_col], label=m, color=MCOL.get(m,"k"), alpha=.75, lw=1.0)
+            ax.plot(s["window_pos_1"]/1e6, s[hud_col], label=m, color=MCOL.get(m,"k"),
+                    ls=method_ls(m), alpha=.75, lw=1.0)
         ax.set_ylabel(f"Hudson Fst {p1} vs {p2}"); ax.axhline(0,color="grey",lw=0.5,ls=":")
     axes[-1].set_xlabel("Position on FR997704.1 (Mb)")
     axes[0].set_title(f"Hudson Fst (50 kb windows) — {regime}")
